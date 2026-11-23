@@ -1,4 +1,4 @@
-# Sigillum Arcanum – Version 11.4.1
+# Sigillum Arcanum – Version 11.4.2
 
 *English manual: [`MANUAL.md`](MANUAL.md)*
 
@@ -137,7 +137,8 @@ die App, leert alle Klartext- und Geheimnisfelder und schließt offene Assistent
 Restzeit. Der Knopf oben rechts wechselt mit dem Zustand: entsperrt heißt er „Jetzt sperren“ (sperrt sofort und leert
 ebenfalls alles), gesperrt „Entsperren“ bzw. „Mit PIN fortsetzen“ – er führt zur Seite „Start“ und setzt den Cursor
 in das Feld, das als Nächstes gebraucht wird.
-Unter Windows sperrt sie zusätzlich, wenn der Bildschirm gesperrt wird.
+Unter Windows sperrt sie zusätzlich, wenn der Bildschirm gesperrt wird. Beides wirkt auch, während ein Vorgang
+läuft; dessen Ergebnis wird dann verworfen und nicht angezeigt.
 
 **Schnell-Entsperren (optional, standardmäßig aus):** Wirkt ab dem nächsten Entsperren nach dem Einschalten (erst
 dann kennt die App die PIN). Nach der *automatischen* Sperre genügt die App-PIN, solange
@@ -156,7 +157,8 @@ PDF speichern.
 ![Schreiben](docs/bilder/05_schreiben.png)
 
 **Lesen** (Seite „Lesen“): Geheimtext einfügen – mehrere Nachrichten durch eine Leerzeile getrennt, die App sortiert
-sie. Für gemeinsame Nachrichten oben den Partner wählen (oder „Von Hand“).
+sie. Für gemeinsame Nachrichten oben den Partner wählen (oder „Von Hand“). Je Durchgang höchstens 10 gemeinsame
+und 50 Kontakt-Nachrichten; den Rest danach einfügen.
 
 ## 5. Kontakt hinzufügen und verifizieren
 

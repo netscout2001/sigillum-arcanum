@@ -1,4 +1,4 @@
-# Sigillum Arcanum – Version 11.4.1
+# Sigillum Arcanum – Version 11.4.2
 
 *Deutsche Anleitung: [`LIESMICH.md`](LIESMICH.md)*
 
@@ -94,7 +94,8 @@ Afterwards the start page shows a checklist (“Setup: x of 6 done”) and all o
 all plaintext and secret fields and closes open wizards and dialogs. The remaining time is shown at the top right. The
 button at the top right changes with the state: when unlocked it says “Lock now” (locks immediately and also clears
 everything), when locked “Unlock” or “Continue with PIN” – it takes you to the “Start” page and puts the cursor into
-the field needed next. On Windows the app also locks when the screen is locked.
+the field needed next. On Windows the app also locks when the screen is locked. Both also work while an operation is
+running; its result is then discarded and not shown.
 
 **Quick unlock (optional, off by default):** takes effect from the next unlock after turning it on (only then does the
 app know the PIN). After the *automatic* lock, the app PIN is enough while the app is running. After 3 wrong PINs,
@@ -112,7 +113,8 @@ could brute-force the short PIN.
 ![Write](docs/bilder/en/05_write.png)
 
 **Read** (“Read” page): paste the ciphertext – separate several messages with a blank line, the app sorts them. For
-shared messages choose the partner at the top (or “By hand”).
+shared messages choose the partner at the top (or “By hand”). At most 10 shared and 50 contact messages per run;
+paste the rest afterwards.
 
 ## 5. Adding and verifying a contact
 

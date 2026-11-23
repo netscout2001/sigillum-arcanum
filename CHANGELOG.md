@@ -3,6 +3,24 @@
 Each section becomes the text of the GitHub release for that version (`.github/workflows/release.yml`).
 Jeder Abschnitt wird zum Text der GitHub-Release dieser Version.
 
+## 11.4.2
+
+Fixes for GitHub code scanning alerts #4 and #6 / Behebungen der Code-Scanning-Meldungen #4 und #6.
+
+* **Lock always works (#4):** automatic lock, Windows screen lock and “Lock now” now also lock while an operation is
+  running; its result is discarded and never shown. Previously a long run – e.g. many pasted fake shared messages, each
+  costing a 1 GiB Argon2id derivation – kept the identity unlocked.
+* **Batch limits (#4):** at most 10 shared and 50 contact messages are decrypted per run.
+* **Clipboard (#6):** text copied or cut from a plaintext or secret field – including part of a line – is remembered
+  (as a session HMAC tag only) and removed from the clipboard when locking, even after the field was cleared.
+
+---
+
+* **Sperren wirkt immer:** automatische Sperre, Windows-Sperre und „Jetzt sperren“ sperren auch während eines laufenden
+  Vorgangs; dessen Ergebnis wird verworfen.
+* **Grenzen je Durchgang:** höchstens 10 gemeinsame und 50 Kontakt-Nachrichten.
+* **Zwischenablage:** Auch ein kopierter Ausschnitt aus einem Klartext- oder Geheimnisfeld wird beim Sperren entfernt.
+
 ## 11.4.1
 
 * Fixed: decoding a very large pasted ciphertext took quadratic time and could freeze the app for minutes
