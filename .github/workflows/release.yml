@@ -1,9 +1,9 @@
 name: release
 
-# Nach jedem grünen Testlauf auf main:
-#  1. Release für die Version aus sigillum/__init__.py anlegen (falls es sie noch nicht gibt),
-#     Text aus dem passenden Abschnitt in CHANGELOG.md, ZIP + SHA-256 als Anhang.
-#  2. Branches löschen, die vollständig in main enthalten sind oder deren Pull Request gemergt wurde.
+# After every green test run of a push to main:
+#  1. Create a release for the version in sigillum/__init__.py (if it does not exist yet),
+#     notes from the matching section of CHANGELOG.md, ZIP + SHA-256 attached.
+#  2. Delete branches that are fully contained in main or whose pull request was merged.
 
 on:
   workflow_run:
@@ -22,14 +22,21 @@ concurrency:
 
 jobs:
   release:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    # Only for a successful test run triggered by a PUSH to main in THIS repository – never for pull requests
+    # (a fork's branch may also be called "main") – or for a manual start from main.
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       REPO: ${{ github.repository }}
       SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
