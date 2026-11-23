@@ -1,4 +1,4 @@
-"""Sigillum Arcanum - Krypto-Kern (Format v3, App-Version 11.2) – ausgerichtet an BSI TR-02102-1 (2026-01).
+"""Sigillum Arcanum - Krypto-Kern (Format v3, App-Version 11.3) – ausgerichtet an BSI TR-02102-1 (2026-01).
 
 Nur geprüfte Bausteine, keine selbst erfundene Kryptografie:
   - PyNaCl (libsodium): Argon2id (TR-02102-1 B.1.2)
@@ -32,6 +32,7 @@ from cryptography.hazmat.primitives.asymmetric import ec, mldsa, mlkem
 from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature, encode_dss_signature
 from cryptography.hazmat.primitives.ciphers.aead import AESGCMSIV
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from .i18n import _
 
 MAGIC = b"SA"
 VERSION = 3                                   # Format v3 seit App-Version 10 (BSI-Umbau); v11: Zustand v4
@@ -72,7 +73,7 @@ def _nfc(s: str) -> bytes:
 def _aead_encrypt(plain: bytes, aad: bytes, nonce: bytes, key: bytes) -> bytes:
     """AES-256-GCM-SIV: bleibt vertraulich und integer, selbst wenn sich eine Nonce wiederholen sollte."""
     if len(key) != 32 or len(nonce) != NONCE_LEN:
-        raise SigillumError("Interner Fehler: Schlüssel- oder Nonce-Länge.")
+        raise SigillumError(_("Interner Fehler: Schlüssel- oder Nonce-Länge."))
     return AESGCMSIV(key).encrypt(nonce, plain, aad)
 
 
@@ -83,7 +84,7 @@ def _aead_decrypt(ct: bytes, aad: bytes, nonce: bytes, key: bytes) -> bytes:
             raise ValueError
         return AESGCMSIV(key).decrypt(nonce, ct, aad)
     except (InvalidTag, ValueError, OverflowError):
-        raise SigillumError("Entschlüsseln fehlgeschlagen: falscher Schlüssel oder veränderte Nachricht.") from None
+        raise SigillumError(_("Entschlüsseln fehlgeschlagen: falscher Schlüssel oder veränderte Nachricht.")) from None
 
 
 def hkdf(ikm: bytes, info: bytes, length: int = 32, salt: bytes | None = None) -> bytes:
@@ -108,7 +109,7 @@ def wordlist() -> list:
         with open(os.path.join(_HERE, "data", "eff_large_wordlist.txt"), encoding="utf-8") as f:
             _WORDS = [w.strip() for w in f if w.strip()]
         if len(_WORDS) != 7776 or len(set(_WORDS)) != 7776:
-            raise SigillumError("Wortliste beschädigt.")
+            raise SigillumError(_("Wortliste beschädigt."))
     return _WORDS
 
 
@@ -143,8 +144,8 @@ def check_passphrase(pw: str):
     words = canonical_passphrase(pw).split(" ")
     known = set(wordlist())
     if not words or any(w not in known for w in words) or len(set(words)) < MIN_WORDS:
-        raise SigillumError(f"Passphrase zu schwach: Sie muss aus mindestens {MIN_WORDS} VERSCHIEDENEN Wörtern der "
-                            "Diceware-Liste bestehen (Knopf 'Erzeugen'). Wiederholte Wörter zählen nur einmal.")
+        raise SigillumError(_("Passphrase zu schwach: Sie muss aus mindestens {0} VERSCHIEDENEN Wörtern der "
+                              "Diceware-Liste bestehen (Knopf 'Erzeugen'). Wiederholte Wörter zählen nur einmal.").format(MIN_WORDS))
 
 
 def check_passphrase_stored(pw: str):
@@ -153,7 +154,7 @@ def check_passphrase_stored(pw: str):
     words = canonical_passphrase(pw).split(" ")
     known = set(wordlist())
     if len(words) < MIN_WORDS or any(w not in known for w in words):     # exakt die Regel bis 11.1 (R14-M1)
-        raise SigillumError("Passphrase ungültig.")
+        raise SigillumError(_("Passphrase ungültig."))
 
 
 def passphrase_is_weak(pw: str) -> bool:
@@ -172,7 +173,7 @@ def generate_passphrase(words: int = 7) -> str:
 
 def check_pin(pin: str):
     if len(unicodedata.normalize("NFC", pin).strip()) < MIN_PIN:
-        raise SigillumError(f"Die PIN muss mindestens {MIN_PIN} Zeichen haben.")
+        raise SigillumError(_("Die PIN muss mindestens {0} Zeichen haben.").format(MIN_PIN))
 
 
 # Befund R12-N2 / R14-M2, R14-N3: naheliegende PINs (TR-02102-1 Bem. 6.2). Geprüft wird auch ohne Trennzeichen
@@ -239,29 +240,29 @@ def pin_problem(pin: str) -> str | None:
     """Befund R12-N2: naheliegende PINs erkennen (TR-02102-1 Bem. 6.2). Rückgabe: Grund oder None. Wirft nie."""
     p = unicodedata.normalize("NFC", pin).strip()
     if len(p) < MIN_PIN:
-        return f"Die PIN muss mindestens {MIN_PIN} Zeichen haben."
+        return _("Die PIN muss mindestens {0} Zeichen haben.").format(MIN_PIN)
     low = p.casefold()
     core_ = re.sub(r"[\s.\-/_:,]", "", low)              # ohne Trennzeichen prüfen (1 2 3 4 5 6, 123-456)
     if _is_sep_date(low) or _is_date(core_):
-        return "Die PIN sieht aus wie ein Datum (z. B. ein Geburtstag)."
+        return _("Die PIN sieht aus wie ein Datum (z. B. ein Geburtstag).")
     if len(set(core_)) <= 2:
-        return "Die PIN besteht aus nur ein oder zwei verschiedenen Zeichen."
+        return _("Die PIN besteht aus nur ein oder zwei verschiedenen Zeichen.")
     for per in (2, 3, 4):
         if len(core_) > per and core_ == (core_[:per] * len(core_))[:len(core_)]:
-            return "Die PIN wiederholt nur ein kurzes Muster."
+            return _("Die PIN wiederholt nur ein kurzes Muster.")
     if _ascii_digits(core_) and len(core_) <= 8 and all(abs(_PAD[a][0] - _PAD[b][0]) <= 1
                                                         and abs(_PAD[a][1] - _PAD[b][1]) <= 1
                                                         for a, b in zip(core_, core_[1:])):
-        return "Die PIN ist ein Weg über benachbarte Tasten des Ziffernblocks."
+        return _("Die PIN ist ein Weg über benachbarte Tasten des Ziffernblocks.")
     if len(core_) <= 3 * len(set(core_)) and core_[:len(core_) // 2] == core_[len(core_) // 2:][::-1]:
-        return "Die PIN ist ein Spiegelmuster (z. B. 123321)."
+        return _("Die PIN ist ein Spiegelmuster (z. B. 123321).")
     runs = re.findall(r"[^\W\d_]+|\d+|[\W_]+", core_)
     if all(_weak_run(r) for r in runs if r):
-        return "Die PIN besteht aus naheliegenden Teilen (Zahlen-/Tastenfolge, Wiederholung oder häufiges Wort)."
+        return _("Die PIN besteht aus naheliegenden Teilen (Zahlen-/Tastenfolge, Wiederholung oder häufiges Wort).")
     if len(core_) % 2 == 0 and _weak_run(core_[0::2]) and _weak_run(core_[1::2]):
-        return "Die PIN ist ein verschränktes Muster (z. B. 1q2w3e, a1b2c3)."
+        return _("Die PIN ist ein verschränktes Muster (z. B. 1q2w3e, a1b2c3).")
     if core_.translate(_LEET) in _WEAK_WORDS:
-        return "Die PIN ist ein häufiges Wort."
+        return _("Die PIN ist ein häufiges Wort.")
     return None
 
 
@@ -269,12 +270,12 @@ def check_pin_new(pin: str):
     """Für eine NEU gewählte App-PIN (Identität): Länge UND nicht naheliegend."""
     why = pin_problem(pin)
     if why:
-        raise SigillumError(why + " Bitte eine zufällige PIN wählen.")
+        raise SigillumError(why + _(" Bitte eine zufällige PIN wählen."))
 
 
 def generate_pin(n: int = 6) -> str:
     while True:
-        p = "".join(secrets.choice("0123456789") for _ in range(n))
+        p = "".join(secrets.choice("0123456789") for _u in range(n))
         if pin_problem(p) is None:
             return p
 
@@ -288,11 +289,11 @@ def new_keyfile() -> bytes:
 
 def read_keyfile(data: bytes) -> bytes:
     if len(data) == 44 and data[:8] == b"SAKEY1\x00\x00":
-        raise SigillumError("Schlüsseldatei aus einer älteren App-Version (vor Version 10) – bitte neu erzeugen.")
+        raise SigillumError(_("Schlüsseldatei aus einer älteren App-Version (vor Version 10) – bitte neu erzeugen."))
     if len(data) != 44 or data[:8] != KEYFILE_MAGIC:
-        raise SigillumError("Das ist keine gültige Schlüsseldatei.")
+        raise SigillumError(_("Das ist keine gültige Schlüsseldatei."))
     if h3(b"SIGILLUM-KEYFILE-CHK", data[:40], 4) != data[40:]:
-        raise SigillumError("Die Schlüsseldatei ist beschädigt (Prüfsumme falsch).")
+        raise SigillumError(_("Die Schlüsseldatei ist beschädigt (Prüfsumme falsch)."))
     return data[8:40]
 
 
@@ -307,29 +308,29 @@ def derive_key(passphrase: str, pin: str, keyfile: bytes, salt: bytes, purpose: 
     ops = KDF_OPS if ops is None else ops
     memlog = KDF_MEMLOG if memlog is None else memlog
     if purpose not in (PURPOSE_SHARED, PURPOSE_IDENTITY):
-        raise SigillumError("Unbekannter Verwendungszweck.")
+        raise SigillumError(_("Unbekannter Verwendungszweck."))
     if (ops, memlog) not in ALLOWED_KDF:
-        raise SigillumError("Unzulässige Schlüsselableitungs-Parameter.")
+        raise SigillumError(_("Unzulässige Schlüsselableitungs-Parameter."))
     if not passphrase or not pin:
-        raise SigillumError("Passphrase und PIN dürfen nicht leer sein.")
+        raise SigillumError(_("Passphrase und PIN dürfen nicht leer sein."))
     secret = read_keyfile(keyfile)
     material = (b"SIGILLUM-ARCANUM-v3\x00" + _lp(purpose) + _lp(canonical_passphrase(passphrase).encode("utf-8"))
                 + _lp(_nfc(pin.strip())) + _lp(secret))
     try:
         return argon2id.kdf(32, material, salt, opslimit=ops, memlimit=1 << memlog)
     except MemoryError:
-        raise SigillumError("Nicht genug Arbeitsspeicher für die Schlüsselableitung (1 GiB nötig).") from None
+        raise SigillumError(_("Nicht genug Arbeitsspeicher für die Schlüsselableitung (1 GiB nötig).")) from None
 
 
 def _argon(material: bytes, salt: bytes, ops: int, memlog: int) -> bytes:
     if (ops, memlog) not in ALLOWED_KDF:
-        raise SigillumError("Unzulässige Schlüsselableitungs-Parameter.")
+        raise SigillumError(_("Unzulässige Schlüsselableitungs-Parameter."))
     if len(salt) != SALT_LEN:
-        raise SigillumError("Interner Fehler: Salz-Länge.")
+        raise SigillumError(_("Interner Fehler: Salz-Länge."))
     try:
         return argon2id.kdf(32, material, salt, opslimit=ops, memlimit=1 << memlog)
     except MemoryError:
-        raise SigillumError("Nicht genug Arbeitsspeicher für die Schlüsselableitung (1 GiB nötig).") from None
+        raise SigillumError(_("Nicht genug Arbeitsspeicher für die Schlüsselableitung (1 GiB nötig).")) from None
 
 
 def derive_daily_key(pin: str, keyfile: bytes, salt: bytes, ops: int | None = None, memlog: int | None = None) -> bytes:
@@ -338,7 +339,7 @@ def derive_daily_key(pin: str, keyfile: bytes, salt: bytes, ops: int | None = No
     ops = KDF_OPS if ops is None else ops
     memlog = KDF_MEMLOG if memlog is None else memlog
     if not pin:
-        raise SigillumError("PIN darf nicht leer sein.")
+        raise SigillumError(_("PIN darf nicht leer sein."))
     secret = read_keyfile(keyfile)
     material = b"SIGILLUM-ARCANUM-v3\x00" + _lp(PURPOSE_DAILY) + _lp(_nfc(pin.strip())) + _lp(secret)
     return _argon(material, salt, ops, memlog)
@@ -347,7 +348,7 @@ def derive_daily_key(pin: str, keyfile: bytes, salt: bytes, ops: int | None = No
 def derive_quick_key(pin: str, salt: bytes) -> bytes:
     """v11, Schnell-Entsperren: Schlüssel nur aus der PIN, für eine im Arbeitsspeicher versiegelte Sitzung."""
     if not pin:
-        raise SigillumError("PIN darf nicht leer sein.")
+        raise SigillumError(_("PIN darf nicht leer sein."))
     material = b"SIGILLUM-ARCANUM-v3\x00" + _lp(PURPOSE_QUICK) + _lp(_nfc(pin.strip()))
     return _argon(material, salt, KDF_OPS, KDF_MEMLOG)
 
@@ -360,7 +361,7 @@ def seal(key: bytes, data: bytes, label: bytes) -> bytes:
 
 def unseal(key: bytes, blob: bytes, label: bytes) -> bytes:
     if len(blob) < NONCE_LEN + TAG_LEN:
-        raise SigillumError("Entschlüsseln fehlgeschlagen: falscher Schlüssel oder veränderte Nachricht.")
+        raise SigillumError(_("Entschlüsseln fehlgeschlagen: falscher Schlüssel oder veränderte Nachricht."))
     return _aead_decrypt(blob[NONCE_LEN:], label, blob[:NONCE_LEN], key)
 
 
@@ -372,9 +373,9 @@ INNER_HDR = 1 + 1 + 8 + 16 + 16 + 4
 def pack_inner(text: str, sender: bytes, now: float | None = None) -> tuple[bytes, bytes]:
     data = text.encode("utf-8")
     if len(data) > MAX_TEXT_BYTES:
-        raise SigillumError("Text zu lang.")
+        raise SigillumError(_("Text zu lang."))
     if len(sender) != 16:
-        raise SigillumError("Interne Absenderkennung ungültig.")
+        raise SigillumError(_("Interne Absenderkennung ungültig."))
     msgid = secrets.token_bytes(16)
     ts = int(time.time() if now is None else now)
     raw = struct.pack(">BBQ", 3, 0, ts) + msgid + sender + struct.pack(">I", len(data)) + data
@@ -386,16 +387,16 @@ def pack_inner(text: str, sender: bytes, now: float | None = None) -> tuple[byte
 
 def unpack_inner(raw: bytes) -> dict:
     if len(raw) < INNER_HDR or raw[0] != 3:
-        raise SigillumError("Unbekanntes Nutzlast-Format.")
-    _, _, ts = struct.unpack(">BBQ", raw[:10])
+        raise SigillumError(_("Unbekanntes Nutzlast-Format."))
+    _u, _u, ts = struct.unpack(">BBQ", raw[:10])
     msgid, sender = raw[10:26], raw[26:42]
     (n,) = struct.unpack(">I", raw[42:46])
     if INNER_HDR + n > len(raw) or any(raw[INNER_HDR + n:]):
-        raise SigillumError("Nutzlast beschädigt.")
+        raise SigillumError(_("Nutzlast beschädigt."))
     try:
         text = raw[INNER_HDR:INNER_HDR + n].decode("utf-8")
     except UnicodeDecodeError:
-        raise SigillumError("Nutzlast beschädigt.") from None
+        raise SigillumError(_("Nutzlast beschädigt.")) from None
     return {"text": text, "timestamp": ts, "msgid": msgid, "sender": sender}
 
 
@@ -407,24 +408,24 @@ def _shared_header(mode, ops, memlog, salt, nonce):
 
 def message_mode(blob: bytes) -> int:
     if len(blob) < 6 or blob[:2] != MAGIC:            # Befund R8-N1: jeder Kopf hat mindestens 6 Byte
-        raise SigillumError("Das ist keine Sigillum-Nachricht (oder die Datei ist unvollständig).")
+        raise SigillumError(_("Das ist keine Sigillum-Nachricht (oder die Datei ist unvollständig)."))
     if blob[2] in (1, 2):
-        raise SigillumError("Datei aus einer älteren App-Version (vor Version 10) – dieses Format wird nicht mehr "
-                            "unterstützt.")
+        raise SigillumError(_("Datei aus einer älteren App-Version (vor Version 10) – dieses Format wird nicht "
+                              "mehr unterstützt."))
     if blob[2] != VERSION:
-        raise SigillumError("Nachricht aus einer neueren Version der App.")
+        raise SigillumError(_("Nachricht aus einer neueren Version der App."))
     if len(blob) > MAX_MESSAGE and blob[3] not in (MODE_IDENTITY, MODE_IDENTITY_FIDO):
-        raise SigillumError("Nachricht zu groß.")
+        raise SigillumError(_("Nachricht zu groß."))
     return blob[3]
 
 
 def _parse_shared_header(blob, mode):
     hl = 6 + SALT_LEN + NONCE_LEN
     if message_mode(blob) != mode or len(blob) < hl + 16:
-        raise SigillumError("Unbekanntes oder falsches Nachrichtenformat.")
+        raise SigillumError(_("Unbekanntes oder falsches Nachrichtenformat."))
     ops, memlog = blob[4], blob[5]
     if (ops, memlog) not in ALLOWED_KDF:
-        raise SigillumError("Unzulässige Schlüsselableitungs-Parameter in der Datei – abgelehnt.")
+        raise SigillumError(_("Unzulässige Schlüsselableitungs-Parameter in der Datei – abgelehnt."))
     salt = blob[6:6 + SALT_LEN]
     nonce = blob[6 + SALT_LEN:hl]
     return blob[:hl], ops, memlog, salt, nonce, blob[hl:]
@@ -437,7 +438,7 @@ def encrypt_shared(text: str, passphrase, pin, keyfile, sender: bytes, stored: b
     stored=True: Faktoren eines in der Identität gespeicherten Partners (vor 11.2 angelegt) – alte Regel, kein Aussperren."""
     (check_passphrase_stored if stored else check_passphrase)(passphrase)
     check_pin(pin)
-    inner, _ = pack_inner(text, sender)
+    inner, _u = pack_inner(text, sender)
     salt, nonce = secrets.token_bytes(SALT_LEN), secrets.token_bytes(NONCE_LEN)
     key = derive_key(passphrase, pin, keyfile, salt, PURPOSE_SHARED)
     header = _shared_header(MODE_SHARED, KDF_OPS, KDF_MEMLOG, salt, nonce)
@@ -476,18 +477,18 @@ def ec_load_point(b: bytes) -> ec.EllipticCurvePublicKey:
     """Punktprüfung (TR-02102-1 Abschn. 2.3.6): nur unkomprimiert, feste Länge, auf der Kurve (OpenSSL prüft),
     nicht der Fernpunkt. Kofaktor von brainpoolP512r1 ist 1 – jeder Kurvenpunkt != O hat Primordnung q."""
     if len(b) != EC_PT or b[0] != 4:
-        raise SigillumError("Öffentlicher Schlüssel ungültig.")
+        raise SigillumError(_("Öffentlicher Schlüssel ungültig."))
     try:
         return ec.EllipticCurvePublicKey.from_encoded_point(CURVE, b)
     except ValueError:
-        raise SigillumError("Öffentlicher Schlüssel ungültig.") from None
+        raise SigillumError(_("Öffentlicher Schlüssel ungültig.")) from None
 
 
 def ec_scalar(seed_material: bytes) -> ec.EllipticCurvePrivateKey:
     """Privater Skalar d in {1..q-1} aus 96 Byte (768 Bit) Zufall: Abweichung von der Gleichverteilung < 2^-256
     (Verfahren analog TR-02102-1 Abschn. B.4: 64+ zusätzliche Bit, dann Reduktion)."""
     if len(seed_material) != 96:
-        raise SigillumError("Interner Fehler: Skalar-Material.")
+        raise SigillumError(_("Interner Fehler: Skalar-Material."))
     d = int.from_bytes(seed_material, "big") % (EC_ORDER - 1) + 1
     return ec.derive_private_key(d, CURVE)
 
@@ -495,14 +496,14 @@ def ec_scalar(seed_material: bytes) -> ec.EllipticCurvePrivateKey:
 def _ecdh(priv: ec.EllipticCurvePrivateKey, pub: ec.EllipticCurvePublicKey) -> bytes:
     ss = priv.exchange(ec.ECDH(), pub)
     if len(ss) != 64 or not any(ss):
-        raise SigillumError("Schlüsselaustausch ungültig.")
+        raise SigillumError(_("Schlüsselaustausch ungültig."))
     return ss
 
 
 def _key_combine(k1, k2, c1, c2, ek1, ek2) -> bytes:
     """SP 800-227 Gl. (15) – Reihenfolge exakt: K1, K2, c1, c2, ek1, ek2, domain_sep."""
     if (len(k1), len(k2), len(c1), len(c2), len(ek1), len(ek2)) != (32, 64, MLKEM_CT, EC_PT, MLKEM_PK, EC_PT):
-        raise SigillumError("Interner Fehler: Kombinierer-Eingaben.")
+        raise SigillumError(_("Interner Fehler: Kombinierer-Eingaben."))
     return hkdf(k1 + k2 + c1 + c2 + ek1 + ek2, HKEM_DOMAIN, 32)
 
 
@@ -511,7 +512,7 @@ class HybridKey:
 
     def __init__(self, seed: bytes):
         if len(seed) != 32:
-            raise SigillumError("Schlüssel-Seed ungültig.")
+            raise SigillumError(_("Schlüssel-Seed ungültig."))
         self.seed = seed
         e = hashlib.shake_256(_lp(b"SIGILLUM-v3-HKEM-expand") + seed).digest(64 + 96)
         self._m = mlkem.MLKEM1024PrivateKey.from_seed_bytes(e[:64])
@@ -526,12 +527,12 @@ class HybridKey:
 
     def decap(self, ct: bytes) -> bytes:
         if len(ct) != HKEM_CT:
-            raise SigillumError("Schlüsselaustausch ungültig.")
+            raise SigillumError(_("Schlüsselaustausch ungültig."))
         c1, c2 = ct[:MLKEM_CT], ct[MLKEM_CT:]
         try:
             k1 = self._m.decapsulate(c1)                 # ML-KEM: implizite Ablehnung (FIPS 203)
         except ValueError:
-            raise SigillumError("Schlüsselaustausch ungültig.") from None
+            raise SigillumError(_("Schlüsselaustausch ungültig.")) from None
         k2 = _ecdh(self._x, ec_load_point(c2))
         return _key_combine(k1, k2, c1, c2, self.pk_m, self.pk_x)
 
@@ -539,11 +540,11 @@ class HybridKey:
 def hkem_check_pk(pk: bytes):
     """Öffentlichen Hybrid-Schlüssel streng prüfen (ML-KEM-Modulus-Prüfung durch OpenSSL, EC-Punktprüfung)."""
     if len(pk) != HKEM_PK:
-        raise SigillumError("Öffentlicher Schlüssel ungültig.")
+        raise SigillumError(_("Öffentlicher Schlüssel ungültig."))
     try:
         mlkem.MLKEM1024PublicKey.from_public_bytes(pk[:MLKEM_PK])
     except ValueError:
-        raise SigillumError("Öffentlicher Schlüssel ungültig.") from None
+        raise SigillumError(_("Öffentlicher Schlüssel ungültig.")) from None
     ec_load_point(pk[MLKEM_PK:])
 
 
@@ -606,11 +607,11 @@ def name_skeleton(name: str) -> str:
 def _check_name(name: str) -> str:
     name = unicodedata.normalize("NFC", name).strip()
     if not name or len(name) > MAX_NAME or any(unicodedata.category(c)[0] == "C" for c in name):
-        raise SigillumError(f"Name ungültig (1–{MAX_NAME} Zeichen, keine Steuerzeichen).")
+        raise SigillumError(_("Name ungültig (1–{0} Zeichen, keine Steuerzeichen).").format(MAX_NAME))
     scripts = {unicodedata.name(c, "?").split(" ")[0] for c in name if c.isalpha()}
     if len(scripts & {"LATIN", "CYRILLIC", "GREEK", "ARMENIAN", "CHEROKEE", "COPTIC"}) > 1:
-        raise SigillumError("Name mischt Schriften (z. B. lateinisch und kyrillisch) – nicht erlaubt, "
-                            "weil sich so Doppelgänger-Namen bauen lassen.")
+        raise SigillumError(_("Name mischt Schriften (z. B. lateinisch und kyrillisch) – nicht erlaubt, weil sich "
+                              "so Doppelgänger-Namen bauen lassen."))
     return name
 
 
@@ -621,7 +622,7 @@ class Identity:
     def __init__(self, name, kem_seed: bytes, e_seed: bytes, d_seed: bytes):
         self.name = _check_name(name)
         if len(e_seed) != 32 or len(d_seed) != 32:
-            raise SigillumError("Identitätsdatei beschädigt.")
+            raise SigillumError(_("Identitätsdatei beschädigt."))
         self.kem = HybridKey(kem_seed)
         self._e_seed, self._d_seed = e_seed, d_seed
         self.e = ec_scalar(hashlib.shake_256(_lp(b"SIGILLUM-v3-ECDSA-expand") + e_seed).digest(96))
@@ -637,7 +638,7 @@ class Identity:
     @classmethod
     def from_secret(cls, name: str, b: bytes):
         if len(b) != cls.SECRET_LEN:
-            raise SigillumError("Identitätsdatei beschädigt.")
+            raise SigillumError(_("Identitätsdatei beschädigt."))
         return cls(name, b[:32], b[32:64], b[64:96])
 
     def sign(self, data: bytes, context: bytes) -> bytes:
@@ -660,7 +661,7 @@ def verify_hybrid(contact: "Contact", sig: bytes, data: bytes, context: bytes):
         ec_verify(contact.e_pub, sig[:EC_SIG], _lp(context) + data)
         mldsa.MLDSA87PublicKey.from_public_bytes(contact.d_pub).verify(sig[EC_SIG:], data, context)
     except (InvalidSignature, ValueError):
-        raise SigillumError("Signatur ungültig: Nachricht gefälscht oder verändert.") from None
+        raise SigillumError(_("Signatur ungültig: Nachricht gefälscht oder verändert.")) from None
 
 
 class Contact:
@@ -676,10 +677,10 @@ class Contact:
     @classmethod
     def from_bytes(cls, b: bytes):
         if len(b) < 10 or b[:6] != PUB_MAGIC:
-            raise SigillumError("Keine (oder eine veraltete) öffentliche Schlüsseldatei.")
+            raise SigillumError(_("Keine (oder eine veraltete) öffentliche Schlüsseldatei."))
         (n,) = struct.unpack(">I", b[6:10])
         if n > 4 * MAX_NAME or 10 + n + sum(cls.LENS) != len(b):
-            raise SigillumError("Öffentliche Schlüsseldatei beschädigt.")
+            raise SigillumError(_("Öffentliche Schlüsseldatei beschädigt."))
         p = 10 + n
         parts = []
         for ln in cls.LENS:
@@ -688,16 +689,16 @@ class Contact:
         try:
             name = b[10:10 + n].decode("utf-8")
         except UnicodeDecodeError:
-            raise SigillumError("Öffentliche Schlüsseldatei beschädigt.") from None
+            raise SigillumError(_("Öffentliche Schlüsseldatei beschädigt.")) from None
         c = cls(name, *parts)
         try:
             hkem_check_pk(c.kem_pk)
             ec_load_point(c.e_pub)
             mldsa.MLDSA87PublicKey.from_public_bytes(c.d_pub)
         except (ValueError, SigillumError):
-            raise SigillumError("Öffentliche Schlüsseldatei beschädigt.") from None
+            raise SigillumError(_("Öffentliche Schlüsseldatei beschädigt.")) from None
         if c.to_bytes() != b:                        # nur kanonische Darstellung annehmen
-            raise SigillumError("Öffentliche Schlüsseldatei nicht in kanonischer Form.")
+            raise SigillumError(_("Öffentliche Schlüsseldatei nicht in kanonischer Form."))
         return c
 
     def fp_raw(self) -> bytes:
@@ -718,8 +719,8 @@ def normalize_fingerprint(s: str) -> str:
 
 # ---------------------------------------------------------------- Selbsttest beim Start
 
-CRYPTO_SUMMARY = ("AES-256-GCM-SIV · HKDF-SHA-512 · SHA-3 und HMAC-SHA-256 · Argon2id · ML-KEM-1024 + ECDH-brainpoolP512r1 · "
-                  "ML-DSA-87 + ECDSA-brainpoolP512r1 (je hybrid, nach BSI TR-02102-1)")
+CRYPTO_SUMMARY = (_("AES-256-GCM-SIV · HKDF-SHA-512 · SHA-3 und HMAC-SHA-256 · Argon2id · ML-KEM-1024 + "
+                    "ECDH-brainpoolP512r1 · ML-DSA-87 + ECDSA-brainpoolP512r1 (je hybrid, nach BSI TR-02102-1)"))
 
 
 # Bekannt-Antwort-Werte (tests/vectors/hkem_v3.txt; vom unabhängigen Prüfer mit eigener EC-Arithmetik und eigenem
@@ -753,13 +754,13 @@ def _foreign_vectors() -> None:
     ec_verify(bytes.fromhex(v["ecdsa_pub"]), bytes.fromhex(v["ecdsa_sig"]), msg)
     try:
         ec_verify(bytes.fromhex(v["ecdsa_pub"]), bytes.fromhex(v["ecdsa_sig"]), msg + b"!")
-        raise ValueError("ECDSA nimmt falsche Nachricht an")
+        raise ValueError(_("ECDSA nimmt falsche Nachricht an"))
     except InvalidSignature:
         pass
     d = mldsa.MLDSA87PrivateKey.from_seed_bytes(bytes.fromhex(v["mldsa_seed"]))
     pk = d.public_key()
     if hashlib.sha3_256(pk.public_bytes_raw()).hexdigest() != v["mldsa_pk_sha3"]:
-        raise ValueError("ML-DSA-Schlüssel")
+        raise ValueError(_("ML-DSA-Schlüssel"))
     pk.verify(bytes.fromhex(v["mldsa_sig"]), msg, bytes.fromhex(v["mldsa_ctx"]))
     a = v["argon2id"]
     if argon2id.kdf(32, bytes.fromhex(a["pw"]), bytes.fromhex(a["salt"]), opslimit=a["ops"],
@@ -788,7 +789,7 @@ def self_test() -> None:
             raise ValueError("Hybrid-KEM")
         ident = Identity("Selbsttest", bytes(32), b"\x01" * 32, b"\x02" * 32)      # ECDSA-/ML-DSA-KeyGen
         if hashlib.sha3_256(ident.public().to_bytes()).hexdigest() != _KAT_IDENT_PUB_SHA3:
-            raise ValueError("Signatur-Schlüssel")
+            raise ValueError(_("Signatur-Schlüssel"))
         _foreign_vectors()                                   # Befund R12-H4: Prüfwerte fremder Implementierungen
         sig = ident.sign(b"x", b"t")
         verify_hybrid(ident.public(), sig, b"x", b"t")
@@ -797,7 +798,7 @@ def self_test() -> None:
                 verify_hybrid(ident.public(), bad[0], bad[1], b"t")
             except SigillumError:
                 continue
-            raise ValueError("Signatur")
+            raise ValueError(_("Signatur"))
     except Exception as e:
-        raise SigillumError(f"Selbsttest der Kryptografie fehlgeschlagen ({e}). Bitte installieren.bat erneut "
-                            "ausführen; die App startet so nicht.") from None
+        raise SigillumError(_("Selbsttest der Kryptografie fehlgeschlagen ({0}). Bitte installieren.bat erneut "
+                              "ausführen; die App startet so nicht.").format(e)) from None

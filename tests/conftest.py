@@ -1,3 +1,7 @@
+import os
+
+os.environ.setdefault("SIGILLUM_LANG", "de")    # bestehende Tests prüfen deutsche Meldungen
+
 import pytest
 
 from sigillum import core

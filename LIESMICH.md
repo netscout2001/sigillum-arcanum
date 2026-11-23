@@ -1,4 +1,6 @@
-# Sigillum Arcanum – Version 11.2
+# Sigillum Arcanum – Version 11.3
+
+*English manual: [`MANUAL.md`](MANUAL.md)*
 
 Verschlüsselung mit eigener Schrift. Läuft vollständig offline unter Windows.
 
@@ -6,6 +8,15 @@ Diese Anleitung führt Schritt für Schritt durch Einrichtung, Alltag und Notfal
 „Ersteinrichtung“ lesen, den Assistenten starten, fertig. Eine einseitige **Kurzanleitung** zum Ausdrucken erzeugt die
 App selbst (Seite „Start“ → „Kurzanleitung speichern“). Die Bilder unten stammen aus einer Testumgebung; unter Windows
 sieht die Schrift etwas anders aus.
+
+**Neu in Version 11.3: Deutsch und Englisch**
+* Die App spricht Deutsch und Englisch. Beim **ersten Start** folgt sie der Windows-Anzeigesprache: Deutsch, wenn
+  Windows auf Deutsch eingestellt ist (auch Österreich, Schweiz …), sonst Englisch. Die Wahl wird gespeichert.
+* Umschalten: Seite „Schlüssel & Sicherheit“ → „Sprache / Language“. Gilt ab dem nächsten Start.
+* Verschlüsselung, Dateiformate und gespeicherte Daten sind unverändert – Nachrichten und Identitäten aus 11.2
+  funktionieren weiter, auch zwischen einer deutschen und einer englischen App.
+* PDFs (Backup, Notfall-Paket, Zufallsblätter, Kurzanleitung) und vorgeschlagene Dateinamen erscheinen in der
+  eingestellten Sprache; Zahlen mit dem passenden Tausendertrennzeichen.
 
 **Neu in Version 11**
 * **Einrichtungs-Assistent**: führt durch Speicherorte, Schlüsseldatei, Passphrase, PIN, Identität, Backup, YubiKey
@@ -49,6 +60,7 @@ sieht die Schrift etwas anders aus.
 | 11 | Assistenten, Alltag ohne Passphrase (mit YubiKey), automatische Sperre, Schnell-Entsperren, Partner in der Identität, neue Oberfläche, Cloud-Warnungen |
 | 11.1 | Härtung nach der 9. Prüfung: zusätzlicher Prüfwert für den Alltags-Schlüssel, Partner-Einträge werden beim Laden wie beim Anlegen geprüft. Identitäten aus 11 öffnen unverändert. Knopf oben rechts wechselt zwischen „Entsperren“ und „Jetzt sperren“ |
 | 11.2 | Befunde der 11. Prüfung behoben: Einmal-Schlüssel je Nachricht (Modus 6), strengere Passphrase- und PIN-Regeln, Cloud-Passkeys abgelehnt, Warnung bei älterer Identitätsdatei, Zwischenablage, Fremd-Prüfwerte im Selbsttest |
+| 11.3 | Zweisprachig (Deutsch/Englisch), Sprache beim ersten Start nach Windows-Anzeigesprache, umschaltbar; Krypto und Formate unverändert |
 
 ---
 
@@ -272,6 +284,7 @@ Nicht geschützt bzw. Restrisiken:
 .venv\Scripts\python -m pytest tests
 .venv\Scripts\python tests\manual_gui_e2e.py      (öffnet kurz ein Fenster, prüft die bisherigen Abläufe)
 .venv\Scripts\python tests\manual_gui_v11.py      (öffnet kurz ein Fenster, prüft Assistent, Sperre, Partner)
+.venv\Scripts\python tests\manual_gui_en.py       (englische Oberfläche: sucht deutsche Reste in allen Seiten)
 ```
 
 Die automatischen Tests nutzen für den YubiKey eine Software-Nachbildung (`tests/softtoken.py`). Der Test mit dem

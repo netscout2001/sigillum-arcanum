@@ -13,6 +13,7 @@ import secrets
 import sys
 
 from .core import SigillumError
+from .i18n import _
 
 RP_ID = "sigillum-arcanum.invalid"     # RFC 2606: ".invalid" wird nie aufgelöst – keine Webseite kann so heißen (R4-4)
 ORIGIN = "https://" + RP_ID
@@ -49,11 +50,11 @@ class Token:
 
 def check_prf(cred_id: bytes, prf: bytes, allowed=None) -> tuple[bytes, bytes]:
     if not isinstance(prf, bytes) or len(prf) != PRF_LEN:
-        raise FidoError("Der YubiKey hat kein gültiges Geheimnis geliefert (hmac-secret nicht unterstützt?).")
+        raise FidoError(_("Der YubiKey hat kein gültiges Geheimnis geliefert (hmac-secret nicht unterstützt?)."))
     if not isinstance(cred_id, bytes) or not 1 <= len(cred_id) <= MAX_CRED_ID:
-        raise FidoError("Der YubiKey hat eine ungültige Zugangs-Kennung geliefert.")
+        raise FidoError(_("Der YubiKey hat eine ungültige Zugangs-Kennung geliefert."))
     if allowed is not None and cred_id not in allowed:
-        raise FidoError("Der YubiKey hat mit einem fremden Zugang geantwortet.")
+        raise FidoError(_("Der YubiKey hat mit einem fremden Zugang geantwortet."))
     return cred_id, prf
 
 
@@ -81,22 +82,23 @@ def _client_error(e) -> FidoError:
     name = getattr(getattr(e, "code", None), "name", "")
     cause = str(getattr(e, "cause", "") or "")
     if "PIN_INVALID" in cause:
-        return FidoError("FIDO-PIN falsch. Achtung: Nach 8 Fehlversuchen sperrt der YubiKey.")
+        return FidoError(_("FIDO-PIN falsch. Achtung: Nach 8 Fehlversuchen sperrt der YubiKey."))
     if "PIN_BLOCKED" in cause or "PIN_AUTH_BLOCKED" in cause:
-        return FidoError("FIDO-PIN gesperrt. Mit dem Notfall-Paket entsperren und den Key zurücksetzen.")
+        return FidoError(_("FIDO-PIN gesperrt. Mit dem Notfall-Paket entsperren und den Key zurücksetzen."))
     if "PIN required but not provided" in cause:          # Eingabe abgebrochen (R6-2) – NICHT zurücksetzen!
-        return FidoError("FIDO-PIN-Eingabe abgebrochen – nichts geändert. Bitte erneut versuchen.\n\nWICHTIG: Den "
-                         "YubiKey deshalb NICHT zurücksetzen – ein Zurücksetzen löscht den Zugang für diese Identität.")
+        return FidoError(_("FIDO-PIN-Eingabe abgebrochen – nichts geändert. Bitte erneut versuchen.\n\nWICHTIG: "
+                           "Den YubiKey deshalb NICHT zurücksetzen – ein Zurücksetzen löscht den Zugang für diese "
+                           "Identität."))
     if "PIN_NOT_SET" in cause:
-        return FidoError("Am YubiKey ist keine FIDO2-PIN gesetzt. Bitte zuerst im Yubico Authenticator festlegen "
-                         "(nur PIN setzen – NICHT zurücksetzen).")
+        return FidoError(_("Am YubiKey ist keine FIDO2-PIN gesetzt. Bitte zuerst im Yubico Authenticator "
+                           "festlegen (nur PIN setzen – NICHT zurücksetzen)."))
     if name == "DEVICE_INELIGIBLE":
-        return FidoError("Dieser YubiKey gehört nicht zu dieser Identität.")
+        return FidoError(_("Dieser YubiKey gehört nicht zu dieser Identität."))
     if name == "TIMEOUT":
-        return FidoError("Zeit abgelaufen – der YubiKey wurde nicht angetippt.")
+        return FidoError(_("Zeit abgelaufen – der YubiKey wurde nicht angetippt."))
     if name == "CONFIGURATION_UNSUPPORTED":
-        return FidoError("Der YubiKey unterstützt die nötige Funktion (hmac-secret mit PIN) nicht.")
-    return FidoError(f"YubiKey-Fehler ({name or type(e).__name__}).")
+        return FidoError(_("Der YubiKey unterstützt die nötige Funktion (hmac-secret mit PIN) nicht."))
+    return FidoError(_("YubiKey-Fehler ({0}).").format(name or type(e).__name__))
 
 
 _FLAG_BE, _FLAG_BS = 0x08, 0x10                    # WebAuthn: Backup Eligible / Backup State
@@ -117,8 +119,8 @@ class Fido2Token(Token):
         try:
             from fido2.client import DefaultClientDataCollector, Fido2Client, UserInteraction
         except ImportError:
-            raise FidoError("Die Bibliothek für den YubiKey (fido2) ist nicht installiert – installieren.bat "
-                            "erneut ausführen.") from None
+            raise FidoError(_("Die Bibliothek für den YubiKey (fido2) ist nicht installiert – installieren.bat "
+                              "erneut ausführen.")) from None
         collector = DefaultClientDataCollector(ORIGIN, verify=lambda rp_id, origin: rp_id == RP_ID and origin == ORIGIN)
         if sys.platform == "win32":
             from fido2.client.windows import WindowsClient
@@ -127,14 +129,14 @@ class Fido2Token(Token):
         from fido2.hid import CtapHidDevice
         devices = list(CtapHidDevice.list_devices())
         if not devices:
-            raise FidoError("Kein YubiKey gefunden. Bitte einstecken (USB).")
+            raise FidoError(_("Kein YubiKey gefunden. Bitte einstecken (USB)."))
         if len(devices) > 1:
-            raise FidoError("Mehrere FIDO-Geräte gefunden – bitte nur den YubiKey einstecken.")
+            raise FidoError(_("Mehrere FIDO-Geräte gefunden – bitte nur den YubiKey einstecken."))
         ui = self.ui
 
         class _UI(UserInteraction):
             def prompt_up(self):
-                ui.status("YubiKey jetzt antippen …")
+                ui.status(_("YubiKey jetzt antippen …"))
 
             def request_pin(self, permissions, rp_id):
                 return ui.ask_pin()
@@ -156,7 +158,7 @@ class Fido2Token(Token):
         options = PublicKeyCredentialCreationOptions(
             rp=PublicKeyCredentialRpEntity(name="Sigillum Arcanum", id=RP_ID),
             user=PublicKeyCredentialUserEntity(name="sigillum", id=secrets.token_bytes(16),
-                                               display_name="Sigillum Arcanum Identität"),
+                                               display_name=_("Sigillum Arcanum Identität")),
             challenge=secrets.token_bytes(32),
             pub_key_cred_params=[PublicKeyCredentialParameters(type=PublicKeyCredentialType.PUBLIC_KEY, alg=-8),
                                  PublicKeyCredentialParameters(type=PublicKeyCredentialType.PUBLIC_KEY, alg=-7)],
@@ -171,25 +173,26 @@ class Fido2Token(Token):
             extensions={"credentialProtectionPolicy": "userVerificationRequired",
                         "enforceCredentialProtectionPolicy": True,
                         "prf": {"eval": {"first": prf_salt}}})
-        self.ui.status("YubiKey: Zugang anlegen – PIN eingeben und antippen …")
+        self.ui.status(_("YubiKey: Zugang anlegen – PIN eingeben und antippen …"))
         try:
             reg = client.make_credential(options)
         except Exception as e:                      # ClientError, ValueError (credProtect), OSError
             raise _client_error(e) from None
         if not _prf_enabled(reg.client_extension_results):
-            raise FidoError("Der YubiKey hat hmac-secret nicht aktiviert – nicht geeignet.")
+            raise FidoError(_("Der YubiKey hat hmac-secret nicht aktiviert – nicht geeignet."))
         if getattr(reg, "authenticator_attachment", None) not in (None, "cross-platform"):
-            raise FidoError("Es wurde kein externer Sicherheitsschlüssel gewählt (z. B. Windows Hello oder Handy). "
-                            "Bitte im Windows-Dialog „Sicherheitsschlüssel“ wählen und den YubiKey benutzen.")
+            raise FidoError(_("Es wurde kein externer Sicherheitsschlüssel gewählt (z. B. Windows Hello oder "
+                              "Handy). Bitte im Windows-Dialog „Sicherheitsschlüssel“ wählen und den YubiKey "
+                              "benutzen."))
         cred_id = reg.raw_id
         auth = reg.response.attestation_object.auth_data
         if not auth.is_user_verified():
-            raise FidoError("Der YubiKey hat die PIN-Prüfung nicht bestätigt – abgebrochen.")
+            raise FidoError(_("Der YubiKey hat die PIN-Prüfung nicht bestätigt – abgebrochen."))
         if _synced(auth):                                 # R14-H1: fido2 liefert keine Transporte – BE/BS genügt
-            raise FidoError("Gewählt wurde ein Passkey, der in eine Cloud (Handy, iCloud, Google, Passwortmanager) "
-                            "gesichert werden kann – nicht geeignet. Bitte im Windows-Dialog „Sicherheitsschlüssel“ "
-                            "wählen und den YubiKey benutzen.")
-        self.ui.status("YubiKey: zur Kontrolle ein zweites Mal PIN eingeben und antippen …")
+            raise FidoError(_("Gewählt wurde ein Passkey, der in eine Cloud (Handy, iCloud, Google, "
+                              "Passwortmanager) gesichert werden kann – nicht geeignet. Bitte im Windows-Dialog "
+                              "„Sicherheitsschlüssel“ wählen und den YubiKey benutzen."))
+        self.ui.status(_("YubiKey: zur Kontrolle ein zweites Mal PIN eingeben und antippen …"))
         return self.derive([cred_id], prf_salt)
 
     def derive(self, cred_ids: list, prf_salt: bytes) -> tuple[bytes, bytes]:
@@ -197,7 +200,7 @@ class Fido2Token(Token):
                                     PublicKeyCredentialRequestOptions, PublicKeyCredentialType,
                                     UserVerificationRequirement)
         if len(prf_salt) != PRF_LEN or not cred_ids:
-            raise FidoError("Interner Fehler: ungültige YubiKey-Anfrage.")
+            raise FidoError(_("Interner Fehler: ungültige YubiKey-Anfrage."))
         client = self._client()
         options = PublicKeyCredentialRequestOptions(
             challenge=secrets.token_bytes(32), timeout=TIMEOUT_MS, rp_id=RP_ID,
@@ -207,14 +210,15 @@ class Fido2Token(Token):
             user_verification=UserVerificationRequirement.REQUIRED,
             hints=[PublicKeyCredentialHint.SECURITY_KEY],
             extensions={"prf": {"eval": {"first": prf_salt}}})
-        self.ui.status("YubiKey: PIN eingeben und antippen …")
+        self.ui.status(_("YubiKey: PIN eingeben und antippen …"))
         try:
             resp = client.get_assertion(options).get_response(0)
         except Exception as e:
             raise _client_error(e) from None
         if not resp.response.authenticator_data.is_user_verified():
-            raise FidoError("Der YubiKey hat die PIN-Prüfung nicht bestätigt – abgebrochen.")
+            raise FidoError(_("Der YubiKey hat die PIN-Prüfung nicht bestätigt – abgebrochen."))
         if _synced(resp.response.authenticator_data):
-            raise FidoError("Der Zugang stammt nicht von einem YubiKey (synchronisierbarer Passkey) – abgelehnt. Bitte "
-                            "mit dem Notfall-Paket entsperren und danach „YubiKey ersetzen“ wählen.")
+            raise FidoError(_("Der Zugang stammt nicht von einem YubiKey (synchronisierbarer Passkey) – "
+                              "abgelehnt. Bitte mit dem Notfall-Paket entsperren und danach „YubiKey ersetzen“ "
+                              "wählen."))
         return check_prf(resp.raw_id, _prf_first(resp.client_extension_results), set(cred_ids))

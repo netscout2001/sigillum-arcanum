@@ -7,7 +7,7 @@ and hybrid post-quantum cryptography aligned with the German BSI TR-02102-1.
 > The code has been through repeated internal security reviews (see [`docs/SECURITY-REVIEW.md`](docs/SECURITY-REVIEW.md)),
 > but no external audit. Do not rely on it where life, liberty or safety depend on secrecy.
 
-![Start page](docs/bilder/04_start_entsperrt.png)
+![Start page](docs/bilder/en/04_start_unlocked.png)
 
 ## What it does
 
@@ -24,6 +24,8 @@ and hybrid post-quantum cryptography aligned with the German BSI TR-02102-1.
 * **Hardening.** Auto-lock, optional quick unlock, rollback warning for restored identity files, clipboard clearing,
   cloud-folder warnings, start-up self test with known-answer vectors from independent implementations.
 * **Offline by design.** No network access, no telemetry.
+* **English and German.** On first start the app follows the Windows display language (German → German, anything
+  else → English); switch any time under “Keys & security”.
 
 Symmetric encryption throughout is **AES-256-GCM-SIV** (RFC 8452), key derivation **HKDF-SHA-512**, hashes **SHA-3**.
 The full byte-level specification is in [`FORMAT.md`](FORMAT.md) (German).
@@ -35,7 +37,7 @@ The full byte-level specification is in [`FORMAT.md`](FORMAT.md) (German).
    SHA-256 hash, binary wheels only.
 3. Start with `start.bat`. A setup wizard guides you through identity, key file, passphrase, PIN, backup and YubiKey.
 
-The user manual is in German: [`LIESMICH.md`](LIESMICH.md).
+User manual: [`MANUAL.md`](MANUAL.md) (English) · [`LIESMICH.md`](LIESMICH.md) (Deutsch).
 
 ## Threat model in brief
 
@@ -54,7 +56,9 @@ python -m pytest -q tests
 ```
 
 The YubiKey is simulated in the automated tests (`tests/softtoken.py`). GUI end-to-end tests
-(`tests/manual_gui_*.py`) need a display. Known-answer vectors live in `tests/vectors/` and `sigillum/data/`;
+(`tests/manual_gui_*.py`) need a display. The test suite runs in German by default (`tests/conftest.py`);
+`tests/test_i18n.py` checks that the English catalog `sigillum/locale/en.json` is complete and consistent, and
+`tests/manual_gui_en.py` walks the English interface looking for leftover German text. Known-answer vectors live in `tests/vectors/` and `sigillum/data/`;
 all keys in them are test keys.
 
 ## Reporting security issues

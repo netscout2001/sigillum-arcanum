@@ -11,6 +11,8 @@ import tkinter as tk
 from tkinter import ttk
 
 from . import core, handmode, ratchet
+from . import i18n
+from .i18n import _, num
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FONT_FAMILY = "Sigillum Arcanum"
@@ -88,17 +90,17 @@ def read_file(path, limit=ratchet.MAX_VAULT) -> bytes:
     with open(path, "rb") as f:
         data = f.read(limit + 1)
     if len(data) > limit:
-        raise core.SigillumError("Datei zu groß.")
+        raise core.SigillumError(_("Datei zu groß."))
     return data
 
 
 def read_keyfile_path(path, what):
     if not path:
-        raise core.SigillumError(f"Bitte die Schlüsseldatei für {what} wählen.")
+        raise core.SigillumError(_("Bitte die Schlüsseldatei für {0} wählen.").format(what))
     try:
         kf = read_file(path, 1024)
     except OSError:
-        raise core.SigillumError(f"Schlüsseldatei für {what} nicht lesbar.") from None
+        raise core.SigillumError(_("Schlüsseldatei für {0} nicht lesbar.").format(what)) from None
     core.read_keyfile(kf)
     return kf
 
@@ -202,8 +204,8 @@ def gap_text(r) -> str:
     """Fehlende Nachrichten kurz beschreiben (Befund R2-3: nie eine riesige Liste anzeigen)."""
     n, nums = r.get("gap_count", len(r["gap"])), r["gap"]
     if n <= len(nums):
-        return f"Nachricht Nr. {', '.join(map(str, nums))}"
-    return f"{n:,} Nachrichten (Nr. {nums[0]} bis {nums[0] + n - 1})".replace(",", ".")
+        return _("Nachricht Nr. {0}").format(', '.join(map(str, nums)))
+    return _("{0} Nachrichten (Nr. {1} bis {2})").format(num(n), num(nums[0]), num(nums[0] + n - 1))
 
 
 def scrolled_text(parent, height=6, font=None, readonly=False, app=None):
@@ -268,7 +270,11 @@ class Config:
         good = (isinstance(ui, dict) and ui.get("theme") in ("light", "dark") and ui.get("lock_min") in LOCK_CHOICES
                 and isinstance(ui.get("quick"), bool))
         if not good:
-            self.d["ui"] = {"theme": "light", "lock_min": LOCK_DEFAULT, "quick": False}
+            keep = ui.get("lang") if isinstance(ui, dict) else None
+            self.d["ui"] = {"theme": "light", "lock_min": LOCK_DEFAULT, "quick": False, "lang": keep}
+            changed = True
+        if self.d["ui"].get("lang") not in i18n.LANGS:      # erster Start: erkannte Sprache festhalten
+            self.d["ui"]["lang"] = i18n.LANG
             changed = True
         for k in ("last_id", "last_ikf"):
             if not isinstance(self.d.get(k, ""), str):

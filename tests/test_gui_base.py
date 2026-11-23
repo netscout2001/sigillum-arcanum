@@ -47,7 +47,13 @@ def test_config_never_stores_secrets(tmp_path, monkeypatch):
     c.d["ui"] = {"theme": "neon", "lock_min": 1, "quick": "ja"}
     c.save()
     c2 = g.Config()
-    assert c2.d["ui"] == {"theme": "light", "lock_min": g.LOCK_DEFAULT, "quick": False}
+    assert c2.d["ui"] == {"theme": "light", "lock_min": g.LOCK_DEFAULT, "quick": False, "lang": g.i18n.LANG}
+    c2.d["ui"] = {"theme": "dark", "lock_min": 1, "quick": False, "lang": "en"}   # ungültige Sperrzeit
+    c2.save()
+    assert g.Config().d["ui"]["lang"] == "en"                                      # Sprachwahl bleibt erhalten
+    c2.d["ui"]["lang"] = "fr"
+    c2.save()
+    assert g.Config().d["ui"]["lang"] == g.i18n.LANG                              # unbekannt → erkannte Sprache
     assert os.path.exists(c2.path)
 
 

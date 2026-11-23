@@ -4,7 +4,7 @@ cd /d "%~dp0"
 echo Sigillum Arcanum - Installation
 py -3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)" >nul 2>&1
 if errorlevel 1 (
-  echo Python 3.11 oder neuer fehlt. Bitte installieren: https://www.python.org/downloads/windows/
+  echo Python 3.11 oder neuer fehlt / Python 3.11 or newer is missing: https://www.python.org/downloads/windows/
   pause
   exit /b 1
 )
@@ -15,10 +15,10 @@ rem 1. pip selbst auf eine gepruefte Version bringen (mit Pruefsumme)
 rem 2. Bibliotheken mit festen Versionen und Pruefsummen
 .venv\Scripts\python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: --no-deps -r requirements-windows.txt || goto fehler
 echo.
-echo Fertig. Starten mit start.bat
+echo Fertig. Starten mit start.bat / Done. Start with start.bat
 pause
 exit /b 0
 :fehler
-echo Installation fehlgeschlagen - nichts wurde gestartet.
+echo Installation fehlgeschlagen / Installation failed - nichts gestartet / nothing started.
 pause
 exit /b 1

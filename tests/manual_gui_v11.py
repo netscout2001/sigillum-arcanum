@@ -2,6 +2,7 @@
 Schnell-Entsperren, Partner, Cloud-/Ordner-Warnungen, Schritt-Bestätigung, Design. Aufruf: python tests/manual_gui_v11.py"""
 import glob, os, sys, tempfile, time, hashlib
 tmp = tempfile.mkdtemp()
+os.environ['SIGILLUM_LANG'] = 'de'  # prüft deutsche Meldungstexte
 os.environ['APPDATA'] = tmp; os.environ['LOCALAPPDATA'] = tmp; os.environ['SIGILLUM_NO_WIZARD'] = '1'
 for v in ('OneDrive', 'OneDriveConsumer', 'OneDriveCommercial'):
     os.environ.pop(v, None)

@@ -28,6 +28,10 @@ jobs:
           python -m pip install pytest
       - name: Run tests
         run: python -m pytest -q tests
+      - name: Run language tests in English
+        env:
+          SIGILLUM_LANG: en
+        run: python -m pytest -q tests/test_i18n.py tests/test_gui_base.py
 
   linux:
     runs-on: ubuntu-latest

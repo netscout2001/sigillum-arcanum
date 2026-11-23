@@ -22,6 +22,7 @@ import hmac
 import secrets
 
 from .core import h3
+from .i18n import _
 
 SPACE, DOT, COMMA, SHIFT, PUNCT, FILL = 26, 27, 28, 29, 30, 31
 PUNCTS = '?!:-()"'
@@ -43,7 +44,7 @@ class HandError(Exception):
 
 def gf_mul(a: int, b: int) -> int:
     r = 0
-    for _ in range(5):
+    for _u in range(5):
         if b & 1:
             r ^= a
         b >>= 1
@@ -85,7 +86,7 @@ def text_to_values(text: str) -> list[int]:
         elif ch in PUNCTS:
             vals += [PUNCT, PUNCTS.index(ch)]
         else:
-            raise HandError(f"Zeichen nicht in der Hand-Tabelle: {ch!r}")
+            raise HandError(_("Zeichen nicht in der Hand-Tabelle: {0!r}").format(ch))
     return vals
 
 
@@ -104,13 +105,13 @@ def values_to_text(vals: list[int]) -> str:
         elif v == PUNCT:
             i += 1
             if i >= len(vals) or vals[i] >= len(PUNCTS):
-                raise HandError("Ungültiges Satzzeichen.")
+                raise HandError(_("Ungültiges Satzzeichen."))
             out.append(PUNCTS[vals[i]])
         elif v == FILL:
             pass
         elif digits:
             if v > 9:
-                raise HandError("Ungültiger Wert im Ziffern-Modus.")
+                raise HandError(_("Ungültiger Wert im Ziffern-Modus."))
             out.append(str(v))
         else:
             out.append(chr(65 + v))
@@ -126,7 +127,7 @@ def frame(text: str) -> list[int]:
         body = [FILL] * PAD_TO
     blocks = len(body) // BLOCK
     if blocks > MAX_BLOCKS:
-        raise HandError(f"Text zu lang: höchstens {MAX_BLOCKS * BLOCK} Werte.")
+        raise HandError(_("Text zu lang: höchstens {0} Werte.").format(MAX_BLOCKS * BLOCK))
     return [blocks // 32, blocks % 32] + body
 
 
@@ -137,19 +138,19 @@ class Sheet:
 
     def __init__(self, sid: str, masks: list, rows: list):
         if len(masks) != TAGS or any(len(r) != 1 + TAGS for r in rows):
-            raise HandError("Blatt ungültig.")
+            raise HandError(_("Blatt ungültig."))
         if any(not 0 <= x < 32 for x in masks) or any(not 0 <= x < 32 for r in rows for x in r):
-            raise HandError("Blatt ungültig.")
+            raise HandError(_("Blatt ungültig."))
         self.id, self.masks, self.rows = sid, masks, rows
 
     @classmethod
     def new(cls, blocks: int):
         if not 2 <= blocks <= MAX_BLOCKS:
-            raise HandError(f"Blattgröße 2–{MAX_BLOCKS} Blöcke.")
+            raise HandError(_("Blattgröße 2–{0} Blöcke.").format(MAX_BLOCKS))
         n = 2 + BLOCK * blocks
-        sid = "-".join(secrets.token_hex(2).upper() for _ in range(4))       # 64 Bit (Befund L7)
-        return cls(sid, [secrets.randbelow(32) for _ in range(TAGS)],
-                   [[secrets.randbelow(32) for _ in range(1 + TAGS)] for _ in range(n)])
+        sid = "-".join(secrets.token_hex(2).upper() for _u in range(4))       # 64 Bit (Befund L7)
+        return cls(sid, [secrets.randbelow(32) for _u in range(TAGS)],
+                   [[secrets.randbelow(32) for _u in range(1 + TAGS)] for _u in range(n)])
 
     def code(self) -> str:
         """Kompakte Abschrift für die Rechenhilfe (Befund R2-2):
@@ -168,22 +169,22 @@ class Sheet:
             if ch in " -\n\t\r":
                 continue
             if ch not in _CODE_IDX:
-                raise HandError(f"Ungültiges Zeichen im Blattcode: {ch!r}")
+                raise HandError(_("Ungültiges Zeichen im Blattcode: {0!r}").format(ch))
             vals.append(_CODE_IDX[ch])
         if len(vals) < SID_CHARS + CHECK_CHARS + TAGS + (1 + TAGS) * (2 + BLOCK * 2):
-            raise HandError("Blattcode unvollständig.")
+            raise HandError(_("Blattcode unvollständig."))
         body, check = vals[:-CHECK_CHARS], vals[-CHECK_CHARS:]
         if not hmac.compare_digest(bytes(_code_check(body)), bytes(check)):
-            raise HandError("Blattcode fehlerhaft abgeschrieben (Prüfsumme stimmt nicht). Bitte Zeichen für Zeichen "
-                            "mit der letzten Seite des Blatts vergleichen.")
+            raise HandError(_("Blattcode fehlerhaft abgeschrieben (Prüfsumme stimmt nicht). Bitte Zeichen für "
+                              "Zeichen mit der letzten Seite des Blatts vergleichen."))
         code_sid = _sid_from_values(body[:SID_CHARS])
         table = body[SID_CHARS:]
         n_rows, rest = divmod(len(table) - TAGS, 1 + TAGS)
         if rest or (n_rows - 2) % BLOCK or not 2 <= (n_rows - 2) // BLOCK <= MAX_BLOCKS:
-            raise HandError("Blattcode hat keine gültige Blattgröße.")
+            raise HandError(_("Blattcode hat keine gültige Blattgröße."))
         if not hmac.compare_digest(normalize_sid(sid).encode(), code_sid.encode()):
-            raise HandError(f"Blatt-Nr. passt nicht zum Blattcode (der Code gehört zu Blatt {code_sid}). "
-                            "Bitte die Nummer oben auf dem Blatt prüfen.")
+            raise HandError(_("Blatt-Nr. passt nicht zum Blattcode (der Code gehört zu Blatt {0}). Bitte die "
+                              "Nummer oben auf dem Blatt prüfen.").format(code_sid))
         rows = [table[i:i + 1 + TAGS] for i in range(TAGS, len(table), 1 + TAGS)]
         return cls(code_sid, table[:TAGS], rows)
 
@@ -203,7 +204,7 @@ def _sid_from_values(vals: list) -> str:
     for v in vals:
         n = (n << 5) | v
     if n >> 64:
-        raise HandError("Blattcode fehlerhaft (Blatt-Nr. ungültig).")
+        raise HandError(_("Blattcode fehlerhaft (Blatt-Nr. ungültig)."))
     h = f"{n:016X}"
     return "-".join(h[i:i + 4] for i in range(0, 16, 4))
 
@@ -221,7 +222,7 @@ def message_digest(cipher: list) -> str:
 def normalize_sid(sid: str) -> str:
     h = "".join(c.upper() for c in sid if c in "0123456789ABCDEFabcdef")
     if len(h) != 16:
-        raise HandError("Blatt-Nr. muss 16 Zeichen haben (z. B. 3F2A-91C0-7D4E-B812).")
+        raise HandError(_("Blatt-Nr. muss 16 Zeichen haben (z. B. 3F2A-91C0-7D4E-B812)."))
     return "-".join(h[i:i + 4] for i in range(0, 16, 4))
 
 
@@ -240,21 +241,21 @@ def _tags(plain: list, sheet: Sheet) -> list:
 def encrypt(text: str, sheet: Sheet) -> list[int]:
     p = frame(text)
     if len(p) > len(sheet.rows):
-        raise HandError(f"Zufallsblatt zu kurz: {len(p)} Zeilen nötig, {len(sheet.rows)} vorhanden.")
+        raise HandError(_("Zufallsblatt zu kurz: {0} Zeilen nötig, {1} vorhanden.").format(len(p), len(sheet.rows)))
     return [x ^ sheet.rows[i][0] for i, x in enumerate(p)] + _tags(p, sheet)
 
 
 def decrypt(cipher: list[int], sheet: Sheet) -> str:
     n = len(cipher) - TAGS
     if n < 2 + PAD_TO or (n - 2) % PAD_TO:
-        raise HandError("Länge passt nicht zum Hand-Format.")
+        raise HandError(_("Länge passt nicht zum Hand-Format."))
     if n > len(sheet.rows):
-        raise HandError("Zufallsblatt kürzer als die Nachricht.")
+        raise HandError(_("Zufallsblatt kürzer als die Nachricht."))
     if any(not 0 <= x < 32 for x in cipher):
-        raise HandError("Ungültiger Wert.")
+        raise HandError(_("Ungültiger Wert."))
     p = [x ^ sheet.rows[i][0] for i, x in enumerate(cipher[:n])]
     ok = hmac.compare_digest(bytes(_tags(p, sheet)), bytes(cipher[n:]))
     if not ok or p[0] * 32 + p[1] != (n - 2) // BLOCK:
-        raise HandError("PRÜFUNG FEHLGESCHLAGEN: Die Nachricht wurde verändert oder falsch abgeschrieben. "
-                        "Der Inhalt wird nicht angezeigt. Abschrift und Blatt-Nr. prüfen.")
+        raise HandError(_("PRÜFUNG FEHLGESCHLAGEN: Die Nachricht wurde verändert oder falsch abgeschrieben. Der "
+                          "Inhalt wird nicht angezeigt. Abschrift und Blatt-Nr. prüfen."))
     return values_to_text(p[2:])

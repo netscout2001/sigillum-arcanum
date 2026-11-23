@@ -1,6 +1,6 @@
 """Manueller End-to-End-Test der Oberfläche (öffnet ein Fenster). Aufruf: python tests/manual_gui_e2e.py"""
 import os, sys, time, tempfile, tkinter as tk
-tmp=tempfile.mkdtemp(); os.environ['APPDATA']=tmp; os.environ['LOCALAPPDATA']=tmp; os.environ['SIGILLUM_NO_WIZARD']='1'
+tmp=tempfile.mkdtemp(); os.environ['SIGILLUM_LANG']='de'; os.environ['APPDATA']=tmp; os.environ['LOCALAPPDATA']=tmp; os.environ['SIGILLUM_NO_WIZARD']='1'
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tkinter import messagebox, filedialog
 LOG=[]; ANS=[True]

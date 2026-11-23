@@ -24,6 +24,7 @@ import unicodedata
 
 from . import core
 from .core import SigillumError
+from .i18n import _
 
 MODE = core.MODE_CONTACT_POOL          # gesendet wird nur noch Modus 6; Modus 4 (bis 11.1) wird weiter gelesen
 MODES = (core.MODE_CONTACT, core.MODE_CONTACT_POOL)
@@ -40,7 +41,7 @@ PLAIN_FIXED = 32 + core.SIG_LEN + ANN_LEN
 PLAIN_FIXED_POOL = 32 + core.SIG_LEN + ANN_LEN_POOL
 STATE_MAGIC = b"SAPRV5"
 MAX_VAULT = 64 * 1024 * 1024
-METHODS = ("persönlich", "Video mit Rückfrage")
+METHODS = ("persönlich", "Video mit Rückfrage")    # gespeicherte Kennungen – Anzeige übersetzt die GUI
 GAP_SHOW = 20                       # so viele fehlende Nummern werden höchstens einzeln genannt
 MAX_SEQ = 2 ** 63
 MAX_SEEN = 2000                     # gemerkte Kennungen geöffneter Nachrichten je Kontakt (Befund R3-1)
@@ -136,16 +137,16 @@ def _slot_aad(prefix: bytes, salt: bytes, prf_salt: bytes, typ: int, meta: bytes
 
 def _check_slots(slots: list):
     if any(s["type"] == SLOT_LEGACY_FIDO for s in slots):
-        raise SigillumError("Identitätsdatei aus einer älteren App-Version (YubiKey-Format vor Version 11) – bitte "
-                            "die Identität mit Version 11 neu erzeugen.")
+        raise SigillumError(_("Identitätsdatei aus einer älteren App-Version (YubiKey-Format vor Version 11) – "
+                              "bitte die Identität mit Version 11 neu erzeugen."))
     fido = [s for s in slots if s["type"] == SLOT_DAILY]
     code = [s for s in slots if s["type"] == SLOT_CODE]
     if len(code) != 1 or not 1 <= len(fido) <= MAX_FIDO_SLOTS or len(fido) + len(code) != len(slots):
-        raise SigillumError("Identitätsdatei: ungültige YubiKey-/Notfall-Einträge.")
+        raise SigillumError(_("Identitätsdatei: ungültige YubiKey-/Notfall-Einträge."))
     if any(not 1 <= len(s["meta"]) <= 1023 for s in fido) or len(code[0]["meta"]) != CODE_ID_LEN:
-        raise SigillumError("Identitätsdatei: ungültige YubiKey-/Notfall-Einträge.")
+        raise SigillumError(_("Identitätsdatei: ungültige YubiKey-/Notfall-Einträge."))
     if len({s["meta"] for s in fido}) != len(fido):
-        raise SigillumError("Identitätsdatei: doppelter YubiKey-Eintrag.")
+        raise SigillumError(_("Identitätsdatei: doppelter YubiKey-Eintrag."))
 
 
 def _fido_header(salt: bytes, prf_salt: bytes, slots: list, nonce: bytes) -> bytes:
@@ -157,14 +158,14 @@ def _fido_header(salt: bytes, prf_salt: bytes, slots: list, nonce: bytes) -> byt
 
 def parse_fido_header(blob: bytes) -> dict:
     """Kopf einer Modus-5-Datei streng lesen (ohne Schlüssel). Wirft SigillumError bei jeder Abweichung."""
-    bad = SigillumError("Identitätsdatei beschädigt.")
+    bad = SigillumError(_("Identitätsdatei beschädigt."))
     if core.message_mode(blob) != core.MODE_IDENTITY_FIDO:
-        raise SigillumError("Keine Identitätsdatei mit YubiKey.")
+        raise SigillumError(_("Keine Identitätsdatei mit YubiKey."))
     if len(blob) < 6:                                  # Befund R8-N1: zu kurze Datei sauber ablehnen
         raise bad
     ops, memlog = blob[4], blob[5]
     if (ops, memlog) not in core.ALLOWED_KDF:
-        raise SigillumError("Unzulässige Schlüsselableitungs-Parameter in der Datei – abgelehnt.")
+        raise SigillumError(_("Unzulässige Schlüsselableitungs-Parameter in der Datei – abgelehnt."))
     p = 6
     salt, prf_salt = blob[p:p + core.SALT_LEN], blob[p + core.SALT_LEN:p + core.SALT_LEN + PRF_SALT_LEN]
     p += core.SALT_LEN + PRF_SALT_LEN
@@ -175,7 +176,7 @@ def parse_fido_header(blob: bytes) -> dict:
     if not 2 <= n <= 1 + MAX_FIDO_SLOTS:
         raise bad
     slots = []
-    for _ in range(n):
+    for _u in range(n):
         if len(blob) < p + 3:
             raise bad
         typ = blob[p]
@@ -205,7 +206,7 @@ def file_mode(blob: bytes) -> int:
     """3 = Identität ohne YubiKey, 5 = mit YubiKey."""
     m = core.message_mode(blob)
     if m not in (core.MODE_IDENTITY, core.MODE_IDENTITY_FIDO):
-        raise SigillumError("Das ist keine Identitätsdatei.")
+        raise SigillumError(_("Das ist keine Identitätsdatei."))
     return m
 
 
@@ -227,7 +228,7 @@ def _parse_raw(raw: bytes):
         state = _migrate(state)
         ident = core.Identity.from_secret(name, secret)
     except (ValueError, struct.error, UnicodeDecodeError, AttributeError, SigillumError):
-        raise SigillumError("Identitätsdatei beschädigt oder aus einer älteren Version.") from None
+        raise SigillumError(_("Identitätsdatei beschädigt oder aus einer älteren Version.")) from None
     return ident, state
 
 
@@ -280,24 +281,24 @@ class Vault:
         """Modus 3: Passphrase + PIN + Schlüsseldatei. Modus 5 Alltag: prf_fn(cred_ids, prf_salt) -> (cred_id, prf)
         + PIN + Schlüsseldatei (Passphrase wird ignoriert). Modus 5 Notfall: code = (code_id, code) + Passphrase."""
         if len(blob) > MAX_VAULT:
-            raise SigillumError("Identitätsdatei zu groß.")
+            raise SigillumError(_("Identitätsdatei zu groß."))
         kf_digest = core.keyfile_digest(keyfile)
         if file_mode(blob) == core.MODE_IDENTITY:
             header, ops, memlog, salt, nonce, ct = core._parse_shared_header(blob, core.MODE_IDENTITY)
             key = core.derive_key(passphrase, pin, keyfile, salt, core.PURPOSE_IDENTITY, ops, memlog)
             ident, state = _parse_raw(core._aead_decrypt(ct, header, nonce, key))
             if not hmac.compare_digest(state["chk"]["a"], _a_check(key)):
-                raise SigillumError("Identitätsdatei beschädigt (Prüfwert).")
+                raise SigillumError(_("Identitätsdatei beschädigt (Prüfwert)."))
             return cls(ident, state, key, None, salt, kf_digest)
 
         h = parse_fido_header(blob)
         if code is not None:
             code_id, code_val = code
             if not hmac.compare_digest(code_id, h["code_id"]):
-                raise SigillumError("Dieses Notfall-Paket gehört nicht zu dieser Identitätsdatei (oder ist veraltet "
-                                    "– es wurde inzwischen erneuert).")
+                raise SigillumError(_("Dieses Notfall-Paket gehört nicht zu dieser Identitätsdatei (oder ist "
+                                      "veraltet – es wurde inzwischen erneuert)."))
             if not passphrase:
-                raise SigillumError("Für das Notfall-Paket werden Passphrase und PIN der Identität gebraucht.")
+                raise SigillumError(_("Für das Notfall-Paket werden Passphrase und PIN der Identität gebraucht."))
             key = core.derive_key(passphrase, pin, keyfile, h["salt"], core.PURPOSE_IDENTITY, h["ops"], h["memlog"])
             dkey = None
             slot, secret, via, base = next(s for s in h["slots"] if s["type"] == SLOT_CODE), code_val, "code", key
@@ -307,28 +308,29 @@ class Vault:
             cred_id, prf = prf_fn(h["cred_ids"], h["prf_salt"])
             slot = next((s for s in h["slots"] if s["type"] == SLOT_DAILY and s["meta"] == cred_id), None)
             if slot is None:
-                raise SigillumError("Dieser YubiKey gehört nicht zu dieser Identität.")
+                raise SigillumError(_("Dieser YubiKey gehört nicht zu dieser Identität."))
             secret, via, base = prf, "fido", dkey
         else:
-            raise SigillumError("Diese Identität ist mit einem YubiKey geschützt.")
+            raise SigillumError(_("Diese Identität ist mit einem YubiKey geschützt."))
         if len(secret) != 32:
-            raise SigillumError("Entsperren fehlgeschlagen.")
+            raise SigillumError(_("Entsperren fehlgeschlagen."))
         try:
             body = core._aead_decrypt(slot["wrapped"], _slot_aad(h["header"][:6], h["salt"], h["prf_salt"], slot["type"],
                                                                  slot["meta"]),
                                       slot["nonce"], _slot_kek(base, secret, slot["type"], slot["meta"]))
         except SigillumError:
-            raise SigillumError("Entsperren fehlgeschlagen: " + ("Passphrase, PIN, Schlüsseldatei oder Notfall-Code"
-                                if via == "code" else "PIN, Schlüsseldatei oder YubiKey")
-                                + " passen nicht zu dieser Identität.") from None
+            raise SigillumError(_("Entsperren fehlgeschlagen: Passphrase, PIN, Schlüsseldatei oder Notfall-Code "
+                                  "passen nicht zu dieser Identität.") if via == "code" else
+                                _("Entsperren fehlgeschlagen: PIN, Schlüsseldatei oder YubiKey passen nicht zu dieser "
+                                  "Identität.")) from None
         ident, state = _parse_raw(core._aead_decrypt(h["ct"], h["header"], h["nonce"], body))
         if key is not None and not hmac.compare_digest(state["chk"]["a"], _a_check(key)):
-            raise SigillumError("Identitätsdatei beschädigt (Prüfwert).")
+            raise SigillumError(_("Identitätsdatei beschädigt (Prüfwert)."))
         if dkey is not None:
             if "d" not in state["chk"]:
                 state["chk"]["d"] = _d_check(dkey)      # 11.0 -> 11.1: A2 ist durch die geöffnete Alltags-Hülle bewiesen
             elif not hmac.compare_digest(state["chk"]["d"], _d_check(dkey)):
-                raise SigillumError("Identitätsdatei beschädigt (Prüfwert).")
+                raise SigillumError(_("Identitätsdatei beschädigt (Prüfwert)."))
         prot = {"body": body, "prf_salt": h["prf_salt"], "slots": h["slots"], "via": via}
         return cls(ident, state, key, dkey, h["salt"], kf_digest, prot=prot)
 
@@ -345,7 +347,7 @@ class Vault:
         nonce = secrets.token_bytes(core.NONCE_LEN)                    # neue Nonce bei jedem Schreiben
         if self._prot is None:
             if self._key is None:
-                raise SigillumError("Interner Fehler: Schlüssel der Identität fehlt.")
+                raise SigillumError(_("Interner Fehler: Schlüssel der Identität fehlt."))
             header = core._shared_header(core.MODE_IDENTITY, core.KDF_OPS, core.KDF_MEMLOG, self._salt, nonce)
             return header + core._aead_encrypt(raw, header, nonce, self._key)
         header = _fido_header(self._salt, self._prot["prf_salt"], self._prot["slots"], nonce)
@@ -367,15 +369,15 @@ class Vault:
         """Nachweis aller Faktoren vor sicherheitskritischen Änderungen (YubiKey ein/aus/ersetzen, Notfall-Paket):
         liefert (A, A2) – nur wenn Passphrase, PIN und Schlüsseldatei genau zu DIESER Identität passen."""
         if core.keyfile_digest(keyfile) != self.kf_digest:
-            raise SigillumError("Die Schlüsseldatei gehört nicht zu dieser Identität.")
+            raise SigillumError(_("Die Schlüsseldatei gehört nicht zu dieser Identität."))
         a = core.derive_key(passphrase, pin, keyfile, self._salt, core.PURPOSE_IDENTITY)
         if not hmac.compare_digest(_a_check(a), self.state["chk"]["a"]):
-            raise SigillumError("Passphrase oder PIN passen nicht zu dieser Identität – nichts geändert.")
+            raise SigillumError(_("Passphrase oder PIN passen nicht zu dieser Identität – nichts geändert."))
         d = core.derive_daily_key(pin, keyfile, self._salt)
         if "d" not in self.state["chk"]:
             self.state["chk"]["d"] = _d_check(d)       # 11.0 -> 11.1: PIN und Schlüsseldatei sind über A bewiesen
         if not hmac.compare_digest(_d_check(d), self.state["chk"]["d"]):
-            raise SigillumError("Identitätsdatei beschädigt (Prüfwert) – nichts geändert.")
+            raise SigillumError(_("Identitätsdatei beschädigt (Prüfwert) – nichts geändert."))
         return a, d
 
     # ---------------------------------------------------------- YubiKey-Schutz (Modus 5)
@@ -413,16 +415,16 @@ class Vault:
         if (len(prf_salt) != PRF_SALT_LEN or len(a_key) != 32 or len(d_key) != 32
                 or not hmac.compare_digest(_a_check(a_key), self.state["chk"]["a"])
                 or not hmac.compare_digest(_d_check(d_key), self.state["chk"].get("d", ""))):  # Befund R11-H-c
-            raise SigillumError("Interner Fehler: Schlüssel oder PRF-Wert ungültig.")
+            raise SigillumError(_("Interner Fehler: Schlüssel oder PRF-Wert ungültig."))
         code_id, code_val = code
         if len(code_id) != CODE_ID_LEN or len(code_val) != CODE_LEN:
-            raise SigillumError("Interner Fehler: Notfall-Code ungültig.")
+            raise SigillumError(_("Interner Fehler: Notfall-Code ungültig."))
         body = secrets.token_bytes(32)
         slots = []
         for typ, meta, secret, base in ([(SLOT_DAILY, c, p, d_key) for c, p in keys]
                                         + [(SLOT_CODE, code_id, code_val, a_key)]):
             if len(secret) != 32:
-                raise SigillumError("Interner Fehler: Geheimnis ungültig.")
+                raise SigillumError(_("Interner Fehler: Geheimnis ungültig."))
             nonce = secrets.token_bytes(core.NONCE_LEN)
             wrapped = core._aead_encrypt(body, _slot_aad(_prefix(), self._salt, prf_salt, typ, meta), nonce,
                                          _slot_kek(base, secret, typ, meta))
@@ -436,7 +438,7 @@ class Vault:
         """YubiKey ausschalten: zurück zu Modus 3 (Passphrase, PIN, Schlüsseldatei) – braucht A aus full_keys()."""
         a_key = full[0]
         if len(a_key) != 32 or not hmac.compare_digest(_a_check(a_key), self.state["chk"]["a"]):
-            raise SigillumError("Interner Fehler: Schlüssel ungültig.")
+            raise SigillumError(_("Interner Fehler: Schlüssel ungültig."))
         self._key, self._dkey, self._prot = a_key, None, None
         self.state.pop("recovery_pending", None)
 
@@ -483,7 +485,7 @@ class Vault:
                 raise ValueError
             return cls(ident, state, key, dkey, salt, d["kf"], prot)
         except (ValueError, KeyError, TypeError, AttributeError, UnicodeDecodeError):
-            raise SigillumError("Gesperrte Sitzung beschädigt.") from None
+            raise SigillumError(_("Gesperrte Sitzung beschädigt.")) from None
 
     # ---------------------------------------------------------- Kontaktbuch (Befund M1)
     def contacts(self) -> list:
@@ -501,23 +503,23 @@ class Vault:
     def add_contact(self, c: core.Contact) -> list:
         """Fügt hinzu (unverifiziert). Gibt gleichnamige andere Kontakte zurück (Warnung vor Doppelgängern)."""
         if c.fp() == self.identity.public().fp():
-            raise SigillumError("Das ist deine eigene Identität.")
+            raise SigillumError(_("Das ist deine eigene Identität."))
         sk = core.name_skeleton(c.name)
-        same = [x for x, _, _ in self.contacts() if core.name_skeleton(x.name) == sk and x.fp() != c.fp()]
+        same = [x for x, _u, _u in self.contacts() if core.name_skeleton(x.name) == sk and x.fp() != c.fp()]
         self.state["book"].setdefault(c.fp(), {"name": c.name, "pub": c.to_bytes().hex(), "verified": False,
                                                "method": None, "added": int(time.time())})
         return same
 
     def verify_contact(self, fp: str, typed: str, method: str):
         """Nur wenn der vom Partner vorgelesene Fingerabdruck vollständig übereinstimmt (Befund M5)."""
-        c, _ = self.contact(fp)
+        c, _u = self.contact(fp)
         if c is None:
-            raise SigillumError("Kontakt nicht gefunden.")
+            raise SigillumError(_("Kontakt nicht gefunden."))
         if method not in METHODS:
-            raise SigillumError("Bitte persönlich oder per Video mit Rückfrage vergleichen.")
+            raise SigillumError(_("Bitte persönlich oder per Video mit Rückfrage vergleichen."))
         expected = core.normalize_fingerprint(c.fingerprint())
         if not hmac.compare_digest(core.normalize_fingerprint(typed).encode(), expected.encode()):
-            raise SigillumError("Fingerabdruck stimmt NICHT überein. Kontakt bleibt unverifiziert. Nicht verwenden!")
+            raise SigillumError(_("Fingerabdruck stimmt NICHT überein. Kontakt bleibt unverifiziert. Nicht verwenden!"))
         e = self.state["book"][fp]
         e.update({"verified": True, "method": method, "verified_at": int(time.time())})
 
@@ -541,7 +543,7 @@ class Vault:
     def partner(self, pid: str) -> tuple[str, str, str, bytes]:
         p = self.state["partners"].get(pid)
         if p is None:
-            raise SigillumError("Partner nicht gefunden.")
+            raise SigillumError(_("Partner nicht gefunden."))
         return p["name"], p["pw"], p["pin"], bytes.fromhex(p["kf"])
 
     def add_partner(self, name: str, keyfile: bytes, passphrase: str, pin: str) -> str:
@@ -553,16 +555,16 @@ class Vault:
         core.check_pin(pin)
         d = core.keyfile_digest(keyfile)
         if d == self.kf_digest:
-            raise SigillumError("Das ist die Schlüsseldatei deiner Identität – für einen Partner nie verwenden.")
+            raise SigillumError(_("Das ist die Schlüsseldatei deiner Identität – für einen Partner nie verwenden."))
         if self.same_passphrase(passphrase):
-            raise SigillumError("Das ist die Passphrase deiner Identität – für einen Partner nie verwenden.")
+            raise SigillumError(_("Das ist die Passphrase deiner Identität – für einen Partner nie verwenden."))
         for p in self.state["partners"].values():
             if core.keyfile_digest(bytes.fromhex(p["kf"])) == d:
-                raise SigillumError(f"Dieser gemeinsame Schlüssel ist schon als Partner „{p['name']}“ gespeichert.")
+                raise SigillumError(_("Dieser gemeinsame Schlüssel ist schon als Partner „{0}“ gespeichert.").format(p['name']))
             if core.name_skeleton(p["name"]) == core.name_skeleton(name):
-                raise SigillumError(f"Es gibt schon einen Partner mit (fast) gleichem Namen: „{p['name']}“.")
+                raise SigillumError(_("Es gibt schon einen Partner mit (fast) gleichem Namen: „{0}“.").format(p['name']))
         if len(self.state["partners"]) >= MAX_PARTNERS:
-            raise SigillumError(f"Höchstens {MAX_PARTNERS} Partner.")
+            raise SigillumError(_("Höchstens {0} Partner.").format(MAX_PARTNERS))
         pid = secrets.token_hex(8)
         now = int(time.time())
         self.state["partners"][pid] = {"name": name, "kf": keyfile.hex(), "pw": core.canonical_passphrase(passphrase),
@@ -645,9 +647,9 @@ def reset_contact(vault: Vault, fp: str) -> None:
 def _require_verified(vault: Vault, fp: str) -> core.Contact:
     c, verified = vault.contact(fp)
     if c is None:
-        raise SigillumError("Kontakt unbekannt – zuerst seinen öffentlichen Schlüssel importieren.")
+        raise SigillumError(_("Kontakt unbekannt – zuerst seinen öffentlichen Schlüssel importieren."))
     if not verified:
-        raise SigillumError(f"Kontakt '{c.name}' ist nicht verifiziert – zuerst den Fingerabdruck vergleichen.")
+        raise SigillumError(_("Kontakt '{0}' ist nicht verifiziert – zuerst den Fingerabdruck vergleichen.").format(c.name))
     return c
 
 
@@ -671,7 +673,7 @@ def encrypt(text: str, vault: Vault, recip_fp: str, now: float | None = None) ->
     else:
         t_id, t_pk = BASE_ID, recip.kem_pk
 
-    new_keys = [core.HybridKey.generate() for _ in range(POOL)]
+    new_keys = [core.HybridKey.generate() for _u in range(POOL)]
     kids = []
     while len(kids) < POOL:                          # verschiedene, nie BASE_ID
         k = secrets.token_bytes(8)
@@ -679,9 +681,9 @@ def encrypt(text: str, vault: Vault, recip_fp: str, now: float | None = None) ->
             kids.append(k)
     seq = cs["next_seq"]
     if not 0 < seq < MAX_SEQ:
-        raise SigillumError("Nachrichtenzähler erschöpft – beim Kontakt 'Schlüsselwechsel neu starten'.")
+        raise SigillumError(_("Nachrichtenzähler erschöpft – beim Kontakt 'Schlüsselwechsel neu starten'."))
     announce = struct.pack(">QB", seq, POOL) + b"".join(k + nk.pk for k, nk in zip(kids, new_keys))
-    inner, _ = core.pack_inner(text, my_fp[:16], now)
+    inner, _u = core.pack_inner(text, my_fp[:16], now)
 
     ss, kem_ct = core.hkem_encap(t_pk)
     nonce = secrets.token_bytes(core.NONCE_LEN)
@@ -730,10 +732,10 @@ def open_message(blob: bytes, vault: Vault, hint=None) -> dict:
     """Schritt 1: entschlüsseln, Signaturen prüfen und den NEUEN Zustand berechnen – ohne etwas zu ändern."""
     mode = core.message_mode(blob)
     if mode not in MODES:
-        raise SigillumError("Keine Kontakt-Nachricht.")
+        raise SigillumError(_("Keine Kontakt-Nachricht."))
     fixed = PLAIN_FIXED_POOL if mode == core.MODE_CONTACT_POOL else PLAIN_FIXED
     if len(blob) < HDR_LEN + fixed + core.INNER_HDR + 16:
-        raise SigillumError("Keine (vollständige) Kontakt-Nachricht.")
+        raise SigillumError(_("Keine (vollständige) Kontakt-Nachricht."))
     header, ct = blob[:HDR_LEN], blob[HDR_LEN:]
     kem_ct, nonce = header[4:4 + core.HKEM_CT], header[4 + core.HKEM_CT:]
     my_fp = vault.identity.public().fp_raw()
@@ -749,14 +751,15 @@ def open_message(blob: bytes, vault: Vault, hint=None) -> dict:
         break
     if plain is None:
         if core.h3(b"SIGILLUM-SPENT", header, 16).hex() in vault.state.get("spent", []):
-            raise SigillumError("Diese Nachricht wurde schon geöffnet. Ihr Einmal-Schlüssel ist danach gelöscht "
-                                "worden (gewollt) – der Inhalt lässt sich deshalb nicht noch einmal anzeigen.")
-        raise SigillumError("Nicht entschlüsselbar. Mögliche Ursachen: nicht an dich gerichtet, verändert, alt oder "
-                            "doppelt (der Schlüssel wurde bereits gelöscht – gewollt), in falscher Reihenfolge "
-                            "geöffnet, oder ein altes Backup der Identitätsdatei wurde eingespielt. Abhilfe: fehlende "
-                            "Nachrichten zusammen einfügen oder beim Kontakt 'Schlüsselwechsel neu starten'.")
+            raise SigillumError(_("Diese Nachricht wurde schon geöffnet. Ihr Einmal-Schlüssel ist danach gelöscht "
+                                  "worden (gewollt) – der Inhalt lässt sich deshalb nicht noch einmal anzeigen."))
+        raise SigillumError(_("Nicht entschlüsselbar. Mögliche Ursachen: nicht an dich gerichtet, verändert, alt "
+                              "oder doppelt (der Schlüssel wurde bereits gelöscht – gewollt), in falscher "
+                              "Reihenfolge geöffnet, oder ein altes Backup der Identitätsdatei wurde eingespielt. "
+                              "Abhilfe: fehlende Nachrichten zusammen einfügen oder beim Kontakt "
+                              "'Schlüsselwechsel neu starten'."))
     if len(plain) < fixed + core.INNER_HDR:
-        raise SigillumError("Nutzlast beschädigt.")
+        raise SigillumError(_("Nutzlast beschädigt."))
     sender_fp = plain[:32]
     sig = plain[32:32 + core.SIG_LEN]
     ann = plain[32 + core.SIG_LEN:fixed]
@@ -764,31 +767,31 @@ def open_message(blob: bytes, vault: Vault, hint=None) -> dict:
     fp = sender_fp.hex()
     sender = _require_verified(vault, fp)
     if owner is not None and owner != fp:
-        raise SigillumError("Schlüssel gehört zu einem anderen Kontakt – Nachricht abgelehnt.")
+        raise SigillumError(_("Schlüssel gehört zu einem anderen Kontakt – Nachricht abgelehnt."))
     signed = _signed_data(header, my_fp, sender_fp, ann, inner)
     core.verify_hybrid(sender, sig, signed, SIG_CONTEXT)
     result = core.unpack_inner(inner)
     if result["sender"] != sender_fp[:16]:
-        raise SigillumError("Absenderangaben widersprüchlich.")
+        raise SigillumError(_("Absenderangaben widersprüchlich."))
     (seq,) = struct.unpack(">Q", ann[:8])
     if mode == core.MODE_CONTACT_POOL:
         if ann[8] != POOL:
-            raise SigillumError("Ungültige Schlüsselankündigung.")
+            raise SigillumError(_("Ungültige Schlüsselankündigung."))
         body = ann[9:]
         ann_keys = [(body[j * KEY_LEN:j * KEY_LEN + 8], body[j * KEY_LEN + 8:(j + 1) * KEY_LEN]) for j in range(POOL)]
     else:
         ann_keys = [(ann[8:16], ann[16:])]
     for a_id, a_pk in ann_keys:
         core.hkem_check_pk(a_pk)
-    ids = [a for a, _ in ann_keys]
+    ids = [a for a, _u in ann_keys]
     if not 0 < seq < MAX_SEQ or BASE_ID in ids or len(set(ids)) != len(ids):
-        raise SigillumError("Ungültige Schlüsselankündigung.")
+        raise SigillumError(_("Ungültige Schlüsselankündigung."))
 
     # Befund R3-1: schon geöffnete Nachricht? Dann melden und NICHTS ändern.
     rec = vault.state["seen"].get(fp) or {"ids": [], "ts": 0}
     mid = core.h3(b"SIGILLUM-SEEN", result["msgid"], 16).hex()
     base = {"sender_fp": fp, "sender_name": sender.name, "sender_seq": seq,
-            "key": "Basis-Schlüssel" if used is None else f"Wechselschlüssel Nr. {used['seq']}"}
+            "key": _("Basis-Schlüssel") if used is None else _("Wechselschlüssel Nr. {0}").format(used['seq'])}
     if mid in rec["ids"]:
         result.update(base, duplicate=True, partner_key_updated=False, partner_reset=False, replay=True, late=False,
                       deleted=0, open_keys=len((vault.state["contacts"].get(fp) or {"my_keys": []})["my_keys"]),

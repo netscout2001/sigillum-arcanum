@@ -3,6 +3,7 @@
 Die Darstellung ist rein kosmetisch und öffentlich (Kerckhoffs). Sicherheit kommt allein aus der Kryptografie.
 """
 import secrets
+from .i18n import _
 
 PUA_BASE = 0xE000          # Glyph = U+E000 + 32*form + wert
 FORMS = 4
@@ -32,7 +33,7 @@ def values_to_bytes(values: list[int]) -> bytes:
     out = bytearray()
     for v in values:
         if not 0 <= v < 32:
-            raise ValueError("Ungültiger Wert")
+            raise ValueError(_("Ungültiger Wert"))
         bits = (bits << 5) | v
         nbits += 5
         if nbits >= 8:
@@ -62,7 +63,7 @@ MAX_CHARS = 4 * 1024 * 1024
 def text_to_values(text: str) -> list[int]:
     """Erkennt Glyphen und lateinische Umschrift; Leerraum wird ignoriert."""
     if len(text) > MAX_CHARS:
-        raise ValueError("Eingabe zu groß.")
+        raise ValueError(_("Eingabe zu groß."))
     out = []
     for ch in text:
         if ch.isspace():
@@ -73,7 +74,7 @@ def text_to_values(text: str) -> list[int]:
         elif ch in _LATIN_IDX:                       # exakt Zeichen für Zeichen (Befund R3-3)
             out.append(_LATIN_IDX[ch])
         else:
-            raise ValueError(f"Unbekanntes Zeichen im Geheimtext: {ch!r}")
+            raise ValueError(_("Unbekanntes Zeichen im Geheimtext: {0!r}").format(ch))
     return out
 
 
