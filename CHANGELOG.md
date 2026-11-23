@@ -3,6 +3,25 @@
 Each section becomes the text of the GitHub release for that version (`.github/workflows/release.yml`).
 Jeder Abschnitt wird zum Text der GitHub-Release dieser Version.
 
+## 11.4
+
+**Stronger passphrase check value / Stärkerer Passphrase-Prüfwert**
+
+* The check value that stops a partner's shared passphrase from being your identity passphrase (`chk.pw`) now uses
+  Argon2id (RFC 9106, 3 passes, 64 MiB) instead of HMAC-SHA256 (GitHub code scanning alert #3). It was already stored
+  only inside the encrypted identity file.
+* Older identities keep working and are converted automatically the next time you enter the passphrase (opening
+  without YubiKey, emergency package, or confirming a security change). Messages and contacts are unaffected.
+* **Note:** once converted, an identity file can no longer be opened with 11.3 or older – update the app on every
+  computer where you use this identity.
+
+---
+
+* Der Prüfwert, der verhindert, dass ein Partner deine Identitäts-Passphrase bekommt (`chk.pw`), nutzt jetzt Argon2id
+  statt HMAC-SHA256. Ältere Identitäten werden beim nächsten Eingeben der Passphrase automatisch umgestellt.
+* **Hinweis:** Eine umgestellte Identitätsdatei öffnet sich nicht mehr mit 11.3 oder älter – die App auf jedem
+  Rechner aktualisieren, auf dem du diese Identität benutzt.
+
 ## 11.3
 
 **English and German / Deutsch und Englisch**

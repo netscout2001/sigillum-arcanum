@@ -1,4 +1,4 @@
-# Sigillum Arcanum – Version 11.3
+# Sigillum Arcanum – Version 11.4
 
 *English manual: [`MANUAL.md`](MANUAL.md)*
 
@@ -61,6 +61,7 @@ sieht die Schrift etwas anders aus.
 | 11.1 | Härtung nach der 9. Prüfung: zusätzlicher Prüfwert für den Alltags-Schlüssel, Partner-Einträge werden beim Laden wie beim Anlegen geprüft. Identitäten aus 11 öffnen unverändert. Knopf oben rechts wechselt zwischen „Entsperren“ und „Jetzt sperren“ |
 | 11.2 | Befunde der 11. Prüfung behoben: Einmal-Schlüssel je Nachricht (Modus 6), strengere Passphrase- und PIN-Regeln, Cloud-Passkeys abgelehnt, Warnung bei älterer Identitätsdatei, Zwischenablage, Fremd-Prüfwerte im Selbsttest |
 | 11.3 | Zweisprachig (Deutsch/Englisch), Sprache beim ersten Start nach Windows-Anzeigesprache, umschaltbar; Krypto und Formate unverändert |
+| 11.4 | Prüfwert der Identitäts-Passphrase mit Argon2id statt HMAC (Code-Scanning-Befund); ältere Identitäten werden beim nächsten Eingeben der Passphrase umgestellt und öffnen sich danach nicht mehr mit 11.3 oder älter |
 
 ---
 

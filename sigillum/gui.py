@@ -1,4 +1,4 @@
-"""Sigillum Arcanum – grafische Oberfläche (Tkinter, offline). Version 11.3.
+"""Sigillum Arcanum – grafische Oberfläche (Tkinter, offline). Version 11.4.
 
 Aufbau: Kopfzeile (Sperrstatus, Restzeit, Sperren), Navigation links, Seiten rechts, Statuszeile unten.
 Seiten und Assistenten: gui_pages.py, gui_wizard.py. Gemeinsame Bausteine: gui_base.py.
@@ -491,6 +491,9 @@ class App(PagesMixin, tk.Tk):
         v = self.vault
         fp = v.identity.public().fp_raw()
         self.refresh_all()
+        if getattr(v, "pw_upgraded", False):          # 11.4: neuer Passphrase-Prüfwert (Argon2id) gleich speichern
+            self.after_idle(lambda: self.vault is v and not self.busy and self.vault_op(
+                _("Speichere Prüfwert"), lambda c: None, lambda _u: None))
         self.set_status(_("Identität entsperrt. Passphrase und PIN wurden aus den Feldern gelöscht."))
         if v.fido:
             self.cfg.set_fido(fp, True)

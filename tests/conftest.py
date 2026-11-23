@@ -15,6 +15,9 @@ def fast_kdf(monkeypatch, request):
     monkeypatch.setattr(core, "KDF_OPS", 1)
     monkeypatch.setattr(core, "KDF_MEMLOG", 26)
     monkeypatch.setattr(core, "ALLOWED_KDF", {(1, 26)})
+    monkeypatch.setattr(core, "PWCHK_OPS", 1)                     # Passphrase-Prüfwert (11.4): 8 KiB statt 64 MiB
+    monkeypatch.setattr(core, "PWCHK_MEMLOG", 13)
+    monkeypatch.setattr(core, "PWCHK_ALLOWED", {(1, 13)})
 
 
 def pytest_configure(config):

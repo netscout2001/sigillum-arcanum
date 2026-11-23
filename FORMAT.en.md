@@ -1,4 +1,4 @@
-# Sigillum Arcanum – Format v3 (app version 11.3, for reviewers)
+# Sigillum Arcanum – Format v3 (app version 11.4, for reviewers)
 
 *Deutsche Fassung: [`FORMAT.md`](FORMAT.md). If the two differ, the German version and the code are authoritative.*
 
@@ -9,7 +9,7 @@ SHA3-256/-512, SHAKE256, Argon2id, ML-KEM-1024 (FIPS 203) + ECDH-brainpoolP512r1
 
 All multi-byte integers are big-endian. Every file starts with a header of at least 6 bytes ("SA" | version | mode | …);
 shorter files are rejected with a clear message (finding R8-N1). `lp(x)` = 4-byte length + x. Text is UTF-8.
-Format v3 is identical in 11.2 and 11.3; 11.3 only adds the user interface language.
+Format v3 applies since 11.2; 11.3 only adds the user interface language, 11.4 the Argon2id check value chk.pw (below).
 
 ## Key derivation (modes 1 and 3)
 ```
@@ -50,8 +50,8 @@ state   = {"v":4, "book": {fp: {name, pub, verified, method, …}}, "contacts": 
            "sheets": {sheet no.: message ID}, "sheets_opened": {sheet no.: number of decryptions},
            "seen": {fp: {"ids": [h3("SIGILLUM-SEEN", msgid, 16)], "ts": lower bound}}}
            "chk": {"a": hex(h3("SIGILLUM-v11-A-CHECK", A, 32)), "d": hex(h3("SIGILLUM-v11-A2-CHECK", A2, 32)),
-                   "pw_salt": hex16,
-                   "pw": hex(HMAC-SHA256(pw_salt, pw'))},
+                   "pw_salt": hex16, "pwk": [3, 26],
+                   "pw": hex(Argon2id("SIGILLUM-ARCANUM-v3\0" | lp("pwcheck") | lp(pw'), pw_salt, ops = 3, mem = 2^26))},
            "partners": {pid16hex: {"name", "kf": hex(keyfile44), "pw": pw', "pin", "created", "last_used"}},
            "recovery_pending"?: bool,
            "gen"?: write generation (11.2, R12-N4; missing = 0; +1 on every save),
@@ -68,9 +68,12 @@ chk.d     : check value for A2 (everyday key, purpose "daily"); checked on every
             Since 11.1; identities from 11.0 do not have it yet and receive it on the next everyday unlock or the
             next step-up confirmation (in each case only once A2 has been proven).
 chk.pw    : finding H1 – a shared passphrase must not be the identity passphrase (checked without the passphrase
-            being in the session). Stored only encrypted inside the content. Diceware ≥ 77.5 bits (≈ 2^76.5 SHA-256
-            calls on average) is not economically brute-forceable with this fast hash; this is below the 120 bits of
-            TR-02102-1 remark 6.4 (iii) – but whoever has the decrypted state already has all keys of the identity.
+            being in the session). Stored only encrypted inside the content. Since 11.4 Argon2id (RFC 9106, second
+            recommended option: 3 passes, 64 MiB; only these values are accepted) instead of HMAC-SHA256 (CodeQL
+            alert #3). Not 1 GiB, because the value is computed once per stored partner on loading.
+            Without "pwk" (identities from 11.0–11.3) chk.pw = hex(HMAC-SHA256(pw_salt, pw')); this value is only read
+            and is replaced (new salt) as soon as the passphrase is proven via chk.a: when opening in mode 3, via the
+            emergency package or at step-up confirmation. The app then saves immediately.
 ```
 Writing back: same salt and key, new random nonce (AES-GCM-SIV: even an accidental nonce repetition violates neither
 confidentiality nor integrity, TR-02102-1 section 3.1.2), atomic file replacement; beforehand a check that the file

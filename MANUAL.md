@@ -1,4 +1,4 @@
-# Sigillum Arcanum – Version 11.3
+# Sigillum Arcanum – Version 11.4
 
 *Deutsche Anleitung: [`LIESMICH.md`](LIESMICH.md)*
 

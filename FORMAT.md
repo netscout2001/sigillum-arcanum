@@ -1,4 +1,4 @@
-# Sigillum Arcanum – Format v3 (App-Version 11.3, für Prüfer)
+# Sigillum Arcanum – Format v3 (App-Version 11.4, für Prüfer)
 
 *English version: [`FORMAT.en.md`](FORMAT.en.md)*
 
@@ -9,7 +9,7 @@ SHA3-256/-512, SHAKE256, Argon2id, ML-KEM-1024 (FIPS 203) + ECDH-brainpoolP512r1
 
 Alle Mehrbyte-Zahlen Big-Endian. Jede Datei beginnt mit mindestens 6 Byte Kopf ("SA" | Version | Modus | …);
 kürzere werden mit klarer Meldung abgelehnt (Befund R8-N1). `lp(x)` = 4-Byte-Länge + x. Texte UTF-8.
-Format v3 ist in 11.2 und 11.3 identisch; 11.3 ergänzt nur die Sprache der Oberfläche.
+Format v3 gilt seit 11.2; 11.3 ergänzt nur die Sprache der Oberfläche, 11.4 den Argon2id-Prüfwert chk.pw (unten).
 
 ## Schlüsselableitung (Modus 1 und 3)
 ```
@@ -50,8 +50,8 @@ zustand = {"v":4, "book": {fp: {name, pub, verified, method, …}}, "contacts": 
            "sheets": {Blatt-Nr.: Nachrichtenkennung}, "sheets_opened": {Blatt-Nr.: Anzahl Entschlüsselungen},
            "seen": {fp: {"ids": [h3("SIGILLUM-SEEN", msgid, 16)], "ts": Untergrenze}}}
            "chk": {"a": hex(h3("SIGILLUM-v11-A-CHECK", A, 32)), "d": hex(h3("SIGILLUM-v11-A2-CHECK", A2, 32)),
-                   "pw_salt": hex16,
-                   "pw": hex(HMAC-SHA256(pw_salt, pw'))},
+                   "pw_salt": hex16, "pwk": [3, 26],
+                   "pw": hex(Argon2id("SIGILLUM-ARCANUM-v3\0" | lp("pwcheck") | lp(pw'), pw_salt, ops = 3, mem = 2^26))},
            "partners": {pid16hex: {"name", "kf": hex(Schlüsseldatei44), "pw": pw', "pin", "created", "last_used"}},
            "recovery_pending"?: bool,
            "gen"?: Schreib-Generation (11.2, R12-N4; fehlt = 0; jedes Speichern +1),
@@ -68,9 +68,12 @@ chk.d     : Prüfwert für A2 (Alltags-Schlüssel, Zweck "daily"); geprüft beim
             erzeugen. Seit 11.1; Identitäten aus 11.0 haben ihn noch nicht und bekommen ihn beim nächsten
             Alltags-Entsperren oder bei der nächsten Schritt-Bestätigung (jeweils erst, wenn A2 bewiesen ist).
 chk.pw    : Befund H1 – gemeinsame Passphrase darf nicht die der Identität sein (Prüfung ohne Passphrase in der
-            Sitzung). Liegt nur verschlüsselt im Inhalt. Diceware ≥ 77,5 Bit (≈ 2^76,5 SHA-256-Aufrufe im Mittel) ist
-            mit diesem schnellen Hash wirtschaftlich nicht durchprobierbar; das liegt unter den 120 Bit aus TR-02102-1
-            Bem. 6.4 (iii) – wer den entschlüsselten Zustand hat, hat aber ohnehin alle Schlüssel der Identität.
+            Sitzung). Liegt nur verschlüsselt im Inhalt. Seit 11.4 Argon2id (RFC 9106, zweite empfohlene Einstellung:
+            3 Durchläufe, 64 MiB; nur diese Werte werden angenommen) statt HMAC-SHA256 (CodeQL-Befund #3). Nicht 1 GiB,
+            weil der Wert beim Laden für jeden gespeicherten Partner einmal gerechnet wird.
+            Ohne "pwk" (Identitäten aus 11.0–11.3) ist chk.pw = hex(HMAC-SHA256(pw_salt, pw')); dieser Wert wird nur
+            noch gelesen und ersetzt (neues Salz), sobald die Passphrase über chk.a bewiesen ist: beim Öffnen in
+            Modus 3, über das Notfall-Paket oder bei der Schritt-Bestätigung. Die App speichert danach sofort.
 ```
 Zurückschreiben: gleiches Salz und Schlüssel, neue Zufalls-Nonce (AES-GCM-SIV: auch eine zufällige
 Nonce-Wiederholung verletzt weder Vertraulichkeit noch Integrität, TR-02102-1 Abschn. 3.1.2), atomarer

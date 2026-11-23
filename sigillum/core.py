@@ -1,4 +1,4 @@
-"""Sigillum Arcanum - Krypto-Kern (Format v3, App-Version 11.3) – ausgerichtet an BSI TR-02102-1 (2026-01).
+"""Sigillum Arcanum - Krypto-Kern (Format v3, App-Version 11.4) – ausgerichtet an BSI TR-02102-1 (2026-01).
 
 Nur geprüfte Bausteine, keine selbst erfundene Kryptografie:
   - PyNaCl (libsodium): Argon2id (TR-02102-1 B.1.2)
@@ -44,6 +44,10 @@ SALT_LEN = argon2id.SALTBYTES                 # 16
 KEYFILE_MAGIC = b"SAKEY2\x00\x00"
 KDF_OPS, KDF_MEMLOG = 4, 30                   # Argon2id: 4 Durchläufe, 1 GiB
 ALLOWED_KDF = {(KDF_OPS, KDF_MEMLOG)}         # nur diese Werte werden angenommen (Befund L2)
+# 11.4 (CodeQL #3): Prüfwert der Identitäts-Passphrase (chk.pw) mit Argon2id statt HMAC-SHA256 – RFC 9106,
+# zweite empfohlene Einstellung (3 Durchläufe, 64 MiB); wird bei jedem Laden je Partner gerechnet, daher nicht 1 GiB.
+PWCHK_OPS, PWCHK_MEMLOG = 3, 26
+PWCHK_ALLOWED = {(PWCHK_OPS, PWCHK_MEMLOG)}
 MIN_BUCKET = 128
 MAX_TEXT_BYTES = 256 * 1024
 MAX_MESSAGE = 2 * 1024 * 1024
@@ -331,6 +335,21 @@ def _argon(material: bytes, salt: bytes, ops: int, memlog: int) -> bytes:
         return argon2id.kdf(32, material, salt, opslimit=ops, memlimit=1 << memlog)
     except MemoryError:
         raise SigillumError(_("Nicht genug Arbeitsspeicher für die Schlüsselableitung (1 GiB nötig).")) from None
+
+
+def passphrase_check(passphrase: str, salt: bytes, ops: int, memlog: int) -> bytes:
+    """11.4: Prüfwert der Identitäts-Passphrase (Befund H1: eine gemeinsame Passphrase darf nicht die der Identität
+    sein). Argon2id über die kanonische Passphrase mit eigenem Zweck "pwcheck"; liegt nur verschlüsselt im Inhalt."""
+    if (ops, memlog) not in PWCHK_ALLOWED:
+        raise SigillumError(_("Unzulässige Schlüsselableitungs-Parameter."))
+    if len(salt) != SALT_LEN or not passphrase:
+        raise SigillumError(_("Passphrase ungültig."))
+    material = (b"SIGILLUM-ARCANUM-v3\x00" + _lp(b"pwcheck")
+                + _lp(canonical_passphrase(passphrase).encode("utf-8")))
+    try:
+        return argon2id.kdf(32, material, salt, opslimit=ops, memlimit=1 << memlog)
+    except MemoryError:
+        raise SigillumError(_("Nicht genug Arbeitsspeicher für die Schlüsselableitung.")) from None
 
 
 def derive_daily_key(pin: str, keyfile: bytes, salt: bytes, ops: int | None = None, memlog: int | None = None) -> bytes:

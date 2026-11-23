@@ -86,9 +86,14 @@ def _migrate(state: dict) -> dict:
     chk = state.get("chk")
     # "d" (Prüfwert für A2) seit 11.1; Identitäten aus 11.0 bekommen ihn beim nächsten Alltags-Entsperren bzw. bei der
     # nächsten Schritt-Bestätigung (beides erst, nachdem A2 bewiesen ist) – keine Selbstaussperrung.
-    if (not isinstance(chk, dict) or set(chk) - {"d"} != {"a", "pw_salt", "pw"} or not _is_hex(chk["a"], 64)
+    # "pwk" (11.4): chk.pw ist Argon2id mit diesen Parametern; fehlt er, ist chk.pw noch der HMAC aus 11.0–11.3 und wird
+    # beim nächsten Nachweis der Passphrase ersetzt.
+    if (not isinstance(chk, dict) or set(chk) - {"d", "pwk"} != {"a", "pw_salt", "pw"} or not _is_hex(chk["a"], 64)
             or ("d" in chk and not _is_hex(chk["d"], 64)) or not _is_hex(chk["pw_salt"], 32)
             or not _is_hex(chk["pw"], 64)):
+        raise ValueError
+    if "pwk" in chk and (not isinstance(chk["pwk"], list) or len(chk["pwk"]) != 2
+                         or not all(type(x) is int for x in chk["pwk"]) or tuple(chk["pwk"]) not in core.PWCHK_ALLOWED):
         raise ValueError
     if len(state["partners"]) > MAX_PARTNERS:
         raise ValueError
@@ -106,7 +111,7 @@ def _migrate(state: dict) -> dict:
         core.check_passphrase_stored(p["pw"])
         core.check_pin(p["pin"])
         if (p["pw"] != core.canonical_passphrase(p["pw"]) or p["pin"] != unicodedata.normalize("NFC", p["pin"]).strip()
-                or hmac.compare_digest(_pw_check(bytes.fromhex(chk["pw_salt"]), p["pw"]), chk["pw"])):
+                or hmac.compare_digest(_pw_check(chk, p["pw"]), chk["pw"])):
             raise ValueError                                  # H1: nie die Passphrase der Identität
     return state
 
@@ -241,9 +246,21 @@ def _d_check(d_key: bytes) -> str:
     return core.h3(b"SIGILLUM-v11-A2-CHECK", d_key).hex()
 
 
-def _pw_check(pw_salt: bytes, passphrase: str) -> str:
-    # Diceware >= 77,5 Bit: auch ein schneller Hash ist nicht durchprobierbar; liegt zudem nur VERSCHLÜSSELT im Inhalt.
-    return hmac.new(pw_salt, core.canonical_passphrase(passphrase).encode("utf-8"), hashlib.sha256).hexdigest()
+def _pw_check(chk: dict, passphrase: str) -> str:
+    """Prüfwert der Passphrase zu den Angaben in chk (Salz, Verfahren). Ab 11.4 Argon2id ("pwk" gesetzt); ältere
+    Identitäten haben noch HMAC-SHA256 – nur noch gelesen, beim nächsten Nachweis der Passphrase ersetzt."""
+    salt = bytes.fromhex(chk["pw_salt"])
+    if "pwk" in chk:
+        ops, memlog = chk["pwk"]
+        return core.passphrase_check(passphrase, salt, ops, memlog).hex()
+    return hmac.new(salt, core.canonical_passphrase(passphrase).encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def _new_pw_chk(passphrase: str) -> dict:
+    """Neuer Passphrase-Prüfwert (11.4: Argon2id, neues Salz)."""
+    chk = {"pw_salt": secrets.token_bytes(16).hex(), "pwk": [core.PWCHK_OPS, core.PWCHK_MEMLOG]}
+    chk["pw"] = _pw_check(chk, passphrase)
+    return chk
 
 
 class Vault:
@@ -254,7 +271,8 @@ class Vault:
              Alltags-Hülle je YubiKey (A2 = Argon2id(PIN, Schlüsseldatei, "daily") + YubiKey-Geheimnis),
              Notfall-Hülle (A + Notfall-Code). Im Alltag wird die Passphrase NICHT gebraucht.
     Der Inhalt enthält Prüfwerte: h3(A) (zum Nachprüfen der Passphrase vor sicherheitskritischen Änderungen) und
-    HMAC(pw_salt, Passphrase) (Befund H1: gemeinsame Passphrase darf nicht die der Identität sein)."""
+    Argon2id(pw_salt, Passphrase) (seit 11.4; vorher HMAC) – Befund H1: gemeinsame Passphrase darf nicht die der
+    Identität sein."""
 
     def __init__(self, identity: core.Identity, state: dict, key, dkey, salt: bytes, kf_digest: str,
                  prot: dict | None = None):
@@ -271,9 +289,7 @@ class Vault:
         key = core.derive_key(passphrase, pin, keyfile, salt, core.PURPOSE_IDENTITY)
         dkey = core.derive_daily_key(pin, keyfile, salt)
         state = new_state()
-        pw_salt = secrets.token_bytes(16)
-        state["chk"] = {"a": _a_check(key), "d": _d_check(dkey), "pw_salt": pw_salt.hex(),
-                        "pw": _pw_check(pw_salt, passphrase)}
+        state["chk"] = {"a": _a_check(key), "d": _d_check(dkey), **_new_pw_chk(passphrase)}
         return cls(core.Identity.generate(name), state, key, None, salt, core.keyfile_digest(keyfile))
 
     @classmethod
@@ -289,7 +305,9 @@ class Vault:
             ident, state = _parse_raw(core._aead_decrypt(ct, header, nonce, key))
             if not hmac.compare_digest(state["chk"]["a"], _a_check(key)):
                 raise SigillumError(_("Identitätsdatei beschädigt (Prüfwert)."))
-            return cls(ident, state, key, None, salt, kf_digest)
+            v = cls(ident, state, key, None, salt, kf_digest)
+            v._upgrade_pw_check(passphrase)                # Passphrase ist über A bewiesen
+            return v
 
         h = parse_fido_header(blob)
         if code is not None:
@@ -332,7 +350,10 @@ class Vault:
             elif not hmac.compare_digest(state["chk"]["d"], _d_check(dkey)):
                 raise SigillumError(_("Identitätsdatei beschädigt (Prüfwert)."))
         prot = {"body": body, "prf_salt": h["prf_salt"], "slots": h["slots"], "via": via}
-        return cls(ident, state, key, dkey, h["salt"], kf_digest, prot=prot)
+        v = cls(ident, state, key, dkey, h["salt"], kf_digest, prot=prot)
+        if key is not None:
+            v._upgrade_pw_check(passphrase)                # Notfall-Weg: Passphrase ist über A bewiesen
+        return v
 
     @property
     def gen(self) -> int:
@@ -363,7 +384,15 @@ class Vault:
     # ---------------------------------------------------------- Prüfwerte / Nachweis der vollen Faktoren
     def same_passphrase(self, passphrase: str) -> bool:
         c = self.state["chk"]
-        return hmac.compare_digest(_pw_check(bytes.fromhex(c["pw_salt"]), passphrase), c["pw"])
+        return hmac.compare_digest(_pw_check(c, passphrase), c["pw"])
+
+    def _upgrade_pw_check(self, passphrase: str):
+        """11.4: alten HMAC-Prüfwert durch Argon2id ersetzen. NUR aufrufen, wenn die Passphrase über chk.a bewiesen ist.
+        Gespeichert wird mit dem nächsten Schreiben; pw_upgraded sagt der Oberfläche, dass sie gleich speichern soll."""
+        c = self.state["chk"]
+        if "pwk" not in c and hmac.compare_digest(_pw_check(c, passphrase), c["pw"]):
+            c.update(_new_pw_chk(passphrase))
+            self.pw_upgraded = True
 
     def full_keys(self, passphrase: str, pin: str, keyfile: bytes) -> tuple[bytes, bytes]:
         """Nachweis aller Faktoren vor sicherheitskritischen Änderungen (YubiKey ein/aus/ersetzen, Notfall-Paket):
@@ -373,6 +402,7 @@ class Vault:
         a = core.derive_key(passphrase, pin, keyfile, self._salt, core.PURPOSE_IDENTITY)
         if not hmac.compare_digest(_a_check(a), self.state["chk"]["a"]):
             raise SigillumError(_("Passphrase oder PIN passen nicht zu dieser Identität – nichts geändert."))
+        self._upgrade_pw_check(passphrase)
         d = core.derive_daily_key(pin, keyfile, self._salt)
         if "d" not in self.state["chk"]:
             self.state["chk"]["d"] = _d_check(d)       # 11.0 -> 11.1: PIN und Schlüsseldatei sind über A bewiesen
