@@ -227,7 +227,7 @@ Not protected, or residual risks:
 * **Human error** (storing papers together, keeping old copies, using sheets twice): the app warns, but cannot fully
   prevent it.
 * The automatic lock when the Windows screen is locked has only been tested outside Windows.
-* The code has **not been independently audited**. Format description: `FORMAT.md` (German).
+* The code has **not been independently audited**. Format description: [`FORMAT.en.md`](FORMAT.en.md).
 
 ![Dark theme](docs/bilder/en/08_dark_theme.png)
 

@@ -28,7 +28,7 @@ and hybrid post-quantum cryptography aligned with the German BSI TR-02102-1.
   else → English); switch any time under “Keys & security”.
 
 Symmetric encryption throughout is **AES-256-GCM-SIV** (RFC 8452), key derivation **HKDF-SHA-512**, hashes **SHA-3**.
-The full byte-level specification is in [`FORMAT.md`](FORMAT.md) (German).
+The full byte-level specification is in [`FORMAT.en.md`](FORMAT.en.md) (English) and [`FORMAT.md`](FORMAT.md) (German).
 
 ## Installation (Windows 10/11)
 

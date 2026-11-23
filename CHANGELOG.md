@@ -12,7 +12,7 @@ Jeder Abschnitt wird zum Text der GitHub-Release dieser Version.
 * Messages, printed PDFs and suggested file names follow the chosen language.
 * Cryptography, file formats and stored data are unchanged – 11.2 identities and messages keep working, also between
   an English and a German app.
-* New English manual [`MANUAL.md`](MANUAL.md) with English screenshots.
+* New English manual [`MANUAL.md`](MANUAL.md) with English screenshots and English format specification [`FORMAT.en.md`](FORMAT.en.md).
 
 ---
 

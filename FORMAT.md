@@ -1,4 +1,6 @@
-# Sigillum Arcanum – Format v3 (App-Version 11.2, für Prüfer)
+# Sigillum Arcanum – Format v3 (App-Version 11.3, für Prüfer)
+
+*English version: [`FORMAT.en.md`](FORMAT.en.md)*
 
 Ausgerichtet an BSI TR-02102-1 (Version 2026-01). Primitive: AES-256-GCM-SIV (RFC 8452), HKDF-SHA-512 (RFC 5869),
 SHA3-256/-512, SHAKE256, Argon2id, ML-KEM-1024 (FIPS 203) + ECDH-brainpoolP512r1 (RFC 5639), ML-DSA-87 „hedged“
@@ -7,6 +9,7 @@ SHA3-256/-512, SHAKE256, Argon2id, ML-KEM-1024 (FIPS 203) + ECDH-brainpoolP512r1
 
 Alle Mehrbyte-Zahlen Big-Endian. Jede Datei beginnt mit mindestens 6 Byte Kopf ("SA" | Version | Modus | …);
 kürzere werden mit klarer Meldung abgelehnt (Befund R8-N1). `lp(x)` = 4-Byte-Länge + x. Texte UTF-8.
+Format v3 ist in 11.2 und 11.3 identisch; 11.3 ergänzt nur die Sprache der Oberfläche.
 
 ## Schlüsselableitung (Modus 1 und 3)
 ```
@@ -234,7 +237,7 @@ Salzlängen geprüft (32 bzw. 16 Byte). Wird nie gespeichert.
 ## Lokale Einstellungen (nicht geheim)
 `%APPDATA%\SigillumArcanum\einstellungen.json`: Gerätekennung, gerätespezifische HMAC-Kennungen benutzter
 Schlüsseldateien (H1), gedruckter Backups und exportierter Identitäten, Kennungen gesehener gemeinsamer Nachrichten,
-Oberfläche (Design, Sperrzeit 5/10/15/30 Minuten, Schnell-Entsperren an/aus), zuletzt benutzte PFADE von
+Oberfläche (Design, Sperrzeit 5/10/15/30 Minuten, Schnell-Entsperren an/aus, Sprache "de"/"en" seit 11.3), zuletzt benutzte PFADE von
 Identitätsdatei und Schlüsseldatei, je Identität (als HMAC-Kennung) die höchste gesehene Schreib-Generation
 (11.2, R12-N4: Warnung beim Öffnen einer älteren Fassung). Keine Passphrasen, PINs oder Schlüssel. Ungültige Werte
-werden zurückgesetzt.
+werden zurückgesetzt (eine ungültige Sprache auf die erkannte Systemsprache).
