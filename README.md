@@ -32,6 +32,9 @@ The full byte-level specification is in [`FORMAT.md`](FORMAT.md) (German).
 
 ## Installation (Windows 10/11)
 
+Download the ZIP of the latest release from the [Releases](../../releases) page (check it against the attached
+`.sha256`), or clone the repository. Changes per version: [`CHANGELOG.md`](CHANGELOG.md).
+
 1. Install Python 3.11 or newer from <https://www.python.org/downloads/windows/>.
 2. Run `installieren.bat`. It creates a virtual environment and installs pinned dependencies, each checked by
    SHA-256 hash, binary wheels only.

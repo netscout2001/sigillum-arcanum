@@ -1,0 +1,66 @@
+name: release
+
+# Nach jedem grünen Testlauf auf main:
+#  1. Release für die Version aus sigillum/__init__.py anlegen (falls es sie noch nicht gibt),
+#     Text aus dem passenden Abschnitt in CHANGELOG.md, ZIP + SHA-256 als Anhang.
+#  2. Branches löschen, die vollständig in main enthalten sind oder deren Pull Request gemergt wurde.
+
+on:
+  workflow_run:
+    workflows: [tests]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+
+      - name: Create release if the version is new
+        run: |
+          set -euo pipefail
+          VERSION=$(python3 -c "import re; print(re.search(r'__version__ = \"([0-9.]+)\"', open('sigillum/__init__.py').read()).group(1))")
+          TAG="v$VERSION"
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo "Release $TAG existiert bereits."
+            exit 0
+          fi
+          awk -v v="$VERSION" '$0 ~ "^## "v"$" {on=1; next} /^## / {on=0} on' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "CHANGELOG.md hat keinen Abschnitt '## $VERSION'"; exit 1; }
+          NAME="SigillumArcanum-$VERSION"
+          git archive --format=zip --prefix="$NAME/" -o "$NAME.zip" "$SHA"
+          sha256sum "$NAME.zip" > "$NAME.zip.sha256"
+          gh release create "$TAG" "$NAME.zip" "$NAME.zip.sha256" --repo "$REPO" --target "$SHA" \
+            --title "Sigillum Arcanum $VERSION" --notes-file notes.md
+
+      - name: Delete merged branches
+        run: |
+          set -euo pipefail
+          for b in $(gh api "repos/$REPO/branches?per_page=100" --jq '.[].name'); do
+            [ "$b" = "main" ] && continue
+            ahead=$(gh api "repos/$REPO/compare/main...$b" --jq .ahead_by)
+            merged=$(gh api "repos/$REPO/pulls?state=closed&head=${REPO%%/*}:$b&per_page=100" --jq '[.[] | select(.merged_at != null)] | length')
+            open=$(gh api "repos/$REPO/pulls?state=open&head=${REPO%%/*}:$b" --jq 'length')
+            if [ "$open" = "0" ] && { [ "$ahead" = "0" ] || [ "$merged" != "0" ]; }; then
+              echo "Lösche Branch $b"
+              gh api -X DELETE "repos/$REPO/git/refs/heads/$b"
+            fi
+          done
