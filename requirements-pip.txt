@@ -1,0 +1,4 @@
+# pip selbst – vor allem anderen aktualisieren (ältere pip-Versionen haben bekannte Schwachstellen).
+# Stand 2026-11-03: pip 26.3 (erschienen 2026-11-02), Prüfsumme gegen PyPI abgeglichen.
+pip==26.3 \
+    --hash=sha256:f3b60b20ffaadd4415ed7957212a38ac63fa4c5fa375bd0f4a797777940fad13

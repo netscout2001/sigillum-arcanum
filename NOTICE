@@ -1,0 +1,20 @@
+Sigillum Arcanum
+Copyright 2026 Sn0rrii (https://github.com/netscout2001)
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+The Sigillum Arcanum font files in sigillum/fonts/ are part of this product and covered by the same license.
+
+Third-party material included in this repository
+------------------------------------------------
+
+sigillum/data/eff_large_wordlist.txt
+  EFF Large Wordlist for passphrases, by the Electronic Frontier Foundation (EFF),
+  https://www.eff.org/dice. Licensed under the Creative Commons Attribution License
+  (CC BY 4.0, see https://www.eff.org/copyright). Change: the dice numbers were removed; the words are unchanged.
+
+Third-party libraries (installed separately via pip, not included here)
+----------------------------------------------------------------------
+
+cryptography (Apache-2.0 OR BSD-3-Clause), PyNaCl (Apache-2.0) with libsodium (ISC),
+fido2 by Yubico (BSD-2-Clause / Apache-2.0 / MPL-2.0 parts), ReportLab (BSD), Pillow (MIT-CMU),
+cffi (MIT-0), pycparser (BSD-3-Clause), charset-normalizer (MIT).

@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+# Eigene Schlüssel und Identitäten nie einchecken
+*.said
+*.sakey
+*.sapub
+einstellungen.json
+# Ausnahme: Testvektoren (nur Testschlüssel)
+!tests/vectors/*.said

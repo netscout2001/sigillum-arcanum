@@ -1,0 +1,31 @@
+# Sigillum Arcanum – feste Versionen mit SHA-256-Prüfsummen (Windows 64 Bit, Python 3.11–3.14).
+# Geprüft am 2026-11-03 mit pip-audit und OSV: alle Pakete auf neuestem Stand, keine bekannten Schwachstellen.
+# Direkt: cryptography, pynacl, reportlab, fido2 (Yubico, nur für den optionalen YubiKey; reines Python). Indirekt: cffi, pycparser (für die beiden ersten),
+#         pillow, charset-normalizer (von reportlab verlangt; die App öffnet damit keine fremden Dateien).
+# Installation: py -m pip install --require-hashes --only-binary=:all: -r requirements-windows.txt
+
+cffi==2.1.1 \
+    --hash=sha256:42f6930c31dc7f50732c9ae793c2786c7b6b044195967bbdde40bb9be81c4cc0 \
+    --hash=sha256:f53e442b08449d42821fa4a4fba000095af9f62742a500f978a9f557ec44339a \
+    --hash=sha256:1aa5645c30469b09530c4ebca77ebf8f17618293c58f8549cb1a543a50236e7d \
+    --hash=sha256:3222ba5d678f80a030e6afbcc33dc1ae5cb45facabb61cee2c7016b8432fde48
+charset-normalizer==3.5.2 \
+    --hash=sha256:87e50a3e7cb90af586b6c5faf23e302a970415ac73bd7bd90a515a04b427ef96 \
+    --hash=sha256:780fbe7cab297b81dad9fb8dc5eb003c0468ffb0d9e5f65068c53a34661a96bc \
+    --hash=sha256:78456a747de8dc58360ffa581f30a002baf5aa28cb262536545e91f113ed7639 \
+    --hash=sha256:e4e81e09c1578b8df602e3db08b0b3ea0a6947ad612f52bf8dc5ea8d47691f0c
+cryptography==50.0.2 \
+    --hash=sha256:7afa5a6602a9f29af1f3a2965f831bae7c9d5d597b7cbb716d41ab3b7d89879c
+fido2==2.2.1 \
+    --hash=sha256:ed397da981b9ab133da6ead7309e41f924b566b749956129efe286fae097749f
+pillow==13.0.0 \
+    --hash=sha256:d7710eb676e9bb68965cb045be0d333b4c0d7f9dfbaa7fbf121385b1588683d3 \
+    --hash=sha256:ff3fe9eb621fbb9db4c4be33ab946f6bac5f98ab50ca8d3260503653656c961b \
+    --hash=sha256:9dda0788a9932776a75d8bcc020076edc308ce2508b51f6739a45e3158b3fc42 \
+    --hash=sha256:f7cbb7a64e7ec664775195e4f81923bc8a93d9451b963f844e59118f63147a7a
+pycparser==3.12 \
+    --hash=sha256:a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e
+pynacl==1.6.2 \
+    --hash=sha256:62985f233210dee6548c223301b6c25440852e13d59a8b81490203c3227c5ba0
+reportlab==5.1.0 \
+    --hash=sha256:59fdbaec5efe437095ad1d7292ec9a271c8ca2d3ec75e889c6e61400929b90df
