@@ -12,6 +12,8 @@ Jeder Abschnitt wird zum Text der GitHub-Release dieser Version.
   only inside the encrypted identity file.
 * Older identities keep working and are converted automatically the next time you enter the passphrase (opening
   without YubiKey, emergency package, or confirming a security change). Messages and contacts are unaffected.
+* Fixed: decoding a very large pasted ciphertext took quadratic time and could freeze the app for minutes
+  (code scanning alert #7, CWE-407); it is now linear.
 * **Note:** once converted, an identity file can no longer be opened with 11.3 or older – update the app on every
   computer where you use this identity.
 

@@ -22,6 +22,7 @@ def bytes_to_values(data: bytes) -> list[int]:
         while nbits >= 5:
             nbits -= 5
             out.append((bits >> nbits) & 31)
+        bits &= (1 << nbits) - 1              # nur offene Restbits behalten – sonst wächst die Zahl (quadratisch)
     if nbits:
         out.append((bits << (5 - nbits)) & 31)
     return out
@@ -39,6 +40,7 @@ def values_to_bytes(values: list[int]) -> bytes:
         if nbits >= 8:
             nbits -= 8
             out.append((bits >> nbits) & 0xFF)
+        bits &= (1 << nbits) - 1              # Code-Scanning #7: Restbits begrenzen, Laufzeit linear
     return bytes(out)
 
 

@@ -407,3 +407,15 @@ def test_r8_h4_keyfile_backup_all_pairs():
     two_bad = [parts[0]] + [_resign(bytes(bytearray(p[:-4])[:20]) + bytes([p[20] ^ 1]) + p[21:-4]) for p in parts[1:]]
     with pytest.raises(ValueError):
         shamir.combine_keyfile(two_bad)
+
+
+def test_codec_linear_time_on_huge_input():
+    """Code-Scanning #7 (CWE-407): Bit-Puffer wuchs unbegrenzt -> quadratische Laufzeit bei 4 Mio. Zeichen."""
+    import time
+    from sigillum import codec
+    n = codec.MAX_CHARS
+    t = time.perf_counter()
+    b = codec.values_to_bytes([7] * n)
+    v = codec.bytes_to_values(b)
+    assert len(b) == n * 5 // 8 and v[:8] == [7] * 8
+    assert time.perf_counter() - t < 20                       # vorher: viele Minuten
