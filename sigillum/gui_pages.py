@@ -1174,7 +1174,7 @@ class PagesMixin:
         r = row(c)
         ttk.Button(r, text=_("↓ Verschlüsseln"), style="Primary.TButton", command=self.hand_encrypt).pack(side="left")
         ttk.Button(r, text=_("↑ Entschlüsseln"), command=self.hand_decrypt).pack(side="left", padx=8)
-        self.l_hand = ttk.Label(r, text="", style="Muted.TLabel")
+        self.l_hand = ttk.Label(r, text="", style="Muted.TLabel", wraplength=560, justify="left")
         self.l_hand.pack(side="left", padx=8)
         ttk.Label(c, text=_("Geheimtext (Glyphen)"), style="Card.TLabel").pack(anchor="w")
         fr, self.t_hcipher = scrolled_text(c, height=4, font=self.glyph_font, app=self)
@@ -1182,6 +1182,7 @@ class PagesMixin:
 
     def _hand_label(self, text, warn=False):
         self.l_hand.configure(text=text, style="Warn.TLabel" if warn else "Muted.TLabel")
+        self.set_status(text)                    # Statuszeile nicht auf „Verschlüssele …“ stehen lassen
 
     def make_pad(self):
         try:

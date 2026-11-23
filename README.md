@@ -7,7 +7,7 @@ and hybrid post-quantum cryptography aligned with the German BSI TR-02102-1.
 > The code has been through repeated internal security reviews (see [`docs/SECURITY-REVIEW.md`](docs/SECURITY-REVIEW.md)),
 > but no external audit. Do not rely on it where life, liberty or safety depend on secrecy.
 
-![Start page](docs/bilder/en/04_start_unlocked.png)
+![Reading a contact message – ciphertext in the app's own script, decrypted and verified](docs/bilder/en/09_read_decrypted.png)
 
 ## What it does
 
@@ -29,6 +29,26 @@ and hybrid post-quantum cryptography aligned with the German BSI TR-02102-1.
 
 Symmetric encryption throughout is **AES-256-GCM-SIV** (RFC 8452), key derivation **HKDF-SHA-512**, hashes **SHA-3**.
 The full byte-level specification is in [`FORMAT.en.md`](FORMAT.en.md) (English) and [`FORMAT.md`](FORMAT.md) (German).
+
+## Screenshots
+
+All screenshots show the English interface; the app looks the same in German.
+
+| | |
+| --- | --- |
+| ![Write](docs/bilder/en/05_write.png) | ![Read](docs/bilder/en/09_read_decrypted.png) |
+| **Write.** Choose a verified contact, type the message, encrypt. The ciphertext is shown in the app's own glyph script (or as Base32 for e-mail) and can be copied, saved or printed. | **Read.** Paste one or more messages; the app checks both signatures (classical and post-quantum), shows the sender and deletes receive keys that are no longer needed. |
+| ![Contacts and partners](docs/bilder/en/06_contacts_partners.png) | ![Hand mode](docs/bilder/en/10_hand_mode.png) |
+| **Contacts & partners.** Exchange public keys and verify fingerprints once in person or by video. Partners with a shared key are stored encrypted inside your identity. | **Hand mode.** A one-time pad with forgery protection that also works with pen and paper. The app prints random sheets and keeps an encrypted register so no sheet is used twice. |
+| ![Start page](docs/bilder/en/04_start_unlocked.png) | ![Keys and security](docs/bilder/en/07_keys_security.png) |
+| **Start.** Unlock the identity, see its fingerprint, open notes and the setup checklist. | **Keys & security.** YubiKey on/off, emergency package, automatic lock, quick unlock, theme and language. |
+| ![Setup wizard](docs/bilder/en/03_wizard_passphrase.png) | ![Dark theme](docs/bilder/en/08_dark_theme.png) |
+| **Setup wizard.** Nine steps from storage locations to a printed backup – here the 7-word passphrase that you copy onto paper and type back to check. | **Dark theme.** Light and dark themes; all colours meet a contrast of at least 4.5 : 1 (WCAG AA). |
+
+![Hand mode reference card](docs/bilder/en/11_reference_card.png)
+
+**Reference card for hand mode** (printed by the app): every value has a letter, a digit-mode meaning and four
+interchangeable glyph forms, so the same letter never has to look the same twice.
 
 ## Installation (Windows 10/11)
 
