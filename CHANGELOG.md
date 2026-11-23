@@ -3,6 +3,13 @@
 Each section becomes the text of the GitHub release for that version (`.github/workflows/release.yml`).
 Jeder Abschnitt wird zum Text der GitHub-Release dieser Version.
 
+## 11.4.1
+
+* Fixed: decoding a very large pasted ciphertext took quadratic time and could freeze the app for minutes
+  (code scanning alert #7, CWE-407); it is now linear.
+* Behoben: Ein sehr großer eingefügter Geheimtext wurde in quadratischer Zeit dekodiert und konnte die App minutenlang
+  blockieren; jetzt linear.
+
 ## 11.4
 
 **Stronger passphrase check value / Stärkerer Passphrase-Prüfwert**
@@ -12,8 +19,6 @@ Jeder Abschnitt wird zum Text der GitHub-Release dieser Version.
   only inside the encrypted identity file.
 * Older identities keep working and are converted automatically the next time you enter the passphrase (opening
   without YubiKey, emergency package, or confirming a security change). Messages and contacts are unaffected.
-* Fixed: decoding a very large pasted ciphertext took quadratic time and could freeze the app for minutes
-  (code scanning alert #7, CWE-407); it is now linear.
 * **Note:** once converted, an identity file can no longer be opened with 11.3 or older – update the app on every
   computer where you use this identity.
 

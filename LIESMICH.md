@@ -1,4 +1,4 @@
-# Sigillum Arcanum – Version 11.4
+# Sigillum Arcanum – Version 11.4.1
 
 *English manual: [`MANUAL.md`](MANUAL.md)*
 
