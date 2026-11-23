@@ -108,6 +108,10 @@ class App(PagesMixin, tk.Tk):
                                 anchor="w")
         self.status.pack(fill="x")
         self._update_theme_button()
+        # Code-Scanning #6: auch TEILE einer Zeile, die aus einem Klartext-/Geheimnisfeld kopiert werden, merken –
+        # sonst bliebe ein Ausschnitt nach dem Leeren des Felds beim Sperren in der Zwischenablage.
+        for seq in ("<<Copy>>", "<<Cut>>"):
+            self.bind_all(seq, self._note_copy, add="+")
 
     def show(self, key):
         for k, f in self.pages.items():
@@ -179,7 +183,7 @@ class App(PagesMixin, tk.Tk):
 
     def _idle_tick(self):
         try:
-            if self.vault is not None and not self.busy:
+            if self.vault is not None:              # Code-Scanning #4: sperrt auch während eines langen Vorgangs
                 limit = int(self.cfg.ui("lock_min")) * 60
                 left = limit - (time.monotonic() - self._last_act)
                 self._lock_check += 1
@@ -212,6 +216,21 @@ class App(PagesMixin, tk.Tk):
             if body.strip() and c in body:
                 self.clipboard_clear()
                 return
+
+    def _note_copy(self, e):
+        w = e.widget
+        sensitive = (self.t_plain, self.t_out, self.t_hplain, self.t_pad, self.t_shares)
+        if w in sensitive or isinstance(w, (tk.Entry, ttk.Entry)):
+            self.after_idle(self._note_clipboard)
+
+    def _note_clipboard(self):
+        """Kennung (HMAC mit Sitzungsschlüssel) des gerade kopierten Inhalts merken – nie den Inhalt selbst."""
+        try:
+            c = self.clipboard_get().strip()
+        except tk.TclError:
+            return
+        if c:
+            self._pt_tags.add(self._gen_tag(c))
 
     def note_plaintext(self, text):
         """Nur Kennungen (HMAC mit Sitzungsschlüssel) des Klartexts und seiner Zeilen merken – nie den Text."""
@@ -506,8 +525,8 @@ class App(PagesMixin, tk.Tk):
                                         "ausgeschaltet, kannst du diese Meldung ignorieren."))
 
     def lock(self, reason=None, force=False, keep=None):
-        if self.busy and not force:
-            return messagebox.showinfo("Sigillum Arcanum", _("Bitte warten, bis der laufende Vorgang fertig ist."))
+        """Sperrt sofort – auch während ein Vorgang im Hintergrund läuft (Code-Scanning #4): dessen Ergebnis wird
+        danach verworfen (run/_poll vergleichen vault_gen). 'force' bleibt aus Kompatibilität, ist ohne Wirkung."""
         self.vault_gen += 1
         self.vault = self.vault_path = self.vault_hash = None
         self._recovery_kf = self._recovery_secret = None
@@ -1100,6 +1119,7 @@ class App(PagesMixin, tk.Tk):
                 box["err"] = _("Unerwarteter Fehler: {0}").format(type(e).__name__)
             box["done"] = True
 
+        box["gen"] = self.vault_gen
         threading.Thread(target=target, daemon=True).start()
         self._poll(box, done, fail)
 
@@ -1108,8 +1128,12 @@ class App(PagesMixin, tk.Tk):
             self.after(60, lambda: self._poll(box, done, fail))
             return
         self.busy = False
-        self._last_act = time.monotonic()              # lange Vorgänge zählen als Bedienung
         self.configure(cursor="")
+        if box["gen"] != self.vault_gen:
+            # Code-Scanning #4: während des Vorgangs gesperrt -> Ergebnis verwerfen, nichts anzeigen oder übernehmen
+            box.clear()
+            return
+        self._last_act = time.monotonic()              # lange Vorgänge zählen als Bedienung
         if box.get("err") == "EXTERN":
             self.lock(_("Identität gesperrt: Datei wurde außerhalb der App geändert."), force=True)
             messagebox.showerror("Sigillum Arcanum", _("Die Identitätsdatei wurde außerhalb dieses Fensters "

@@ -15,7 +15,7 @@ for n in ('showinfo', 'showerror', 'showwarning'):
 messagebox.askyesno = lambda *a, **k: ANS[0]
 messagebox.askokcancel = lambda *a, **k: True
 filedialog.askdirectory = lambda *a, **k: DIRQ.pop(0) if DIRQ else ''
-from sigillum import gui, core, ratchet, codec, gui_wizard, gui_base
+from sigillum import gui, core, ratchet, codec, gui_wizard, gui_base, gui_pages
 from softtoken import SoftToken
 core.KDF_OPS, core.KDF_MEMLOG, core.ALLOWED_KDF = 1, 26, {(1, 26)}
 TOK = SoftToken(); gui.fidokey.Fido2Token = lambda ui=None: TOK
@@ -249,6 +249,49 @@ try:
 except Exception:
     clip = ''
 res['R14-H2 früherer Klartext (Feld schon leer) wird beim Sperren aus der Zwischenablage entfernt'] = clip == ''
+
+# ------------------------------------------------------------------ Code-Scanning #6: Teil einer Zeile kopiert
+app.v_ipin.set('864209'); app.unlock(); wait(2)
+app.show('write'); gui.set_text(app.t_plain, 'Treffpunkt morgen 7 Uhr am Nordtor'); app.update()
+app.t_plain.tag_add('sel', '1.10', '1.20'); app.t_plain.focus_force(); app.t_plain.event_generate('<<Copy>>'); app.update()
+copied = app.clipboard_get()
+gui.set_text(app.t_plain, ''); app.lock('manuell'); app.update()
+try:
+    clip = app.clipboard_get()
+except Exception:
+    clip = ''
+res['CS6 kopierter Ausschnitt (Feld danach geleert) wird beim Sperren entfernt'] = copied.strip() == 'morgen 7' and clip == ''
+
+# ------------------------------------------------------------------ Code-Scanning #4: Sperren während eines Vorgangs
+app.v_ipin.set('864209'); app.unlock(); wait(2)
+got = {}
+app.run('Test', lambda: (lambda: time.sleep(1.5) or 'KLARTEXT'), lambda r: got.update(r=r))
+app.update(); busy_before = app.busy
+app.lock('manuell'); app.update()
+locked_while_busy = app.vault is None
+for _ in range(300):
+    app.update(); time.sleep(0.01)
+    if not app.busy: break
+for _ in range(10): app.update(); time.sleep(0.01)
+res['CS4a Sperren während eines Vorgangs, Ergebnis verworfen'] = busy_before and locked_while_busy and 'r' not in got and not app.busy
+app.v_ipin.set('864209'); app.unlock(); wait(2)
+app.run('Test', lambda: (lambda: time.sleep(1.5) or 'x'), lambda r: got.update(r2=r)); app.update()
+app._last_act = time.monotonic() - 10 ** 6; app._idle_tick(); app.update()
+locked_auto = app.vault is None
+for _ in range(300):
+    app.update(); time.sleep(0.01)
+    if not app.busy: break
+res['CS4b automatische Sperre greift auch während eines Vorgangs'] = locked_auto and 'r2' not in got
+app.v_ipin.set('864209'); app.unlock(); wait(2)
+skf = core.new_keyfile(); spw = core.generate_passphrase(); blob = core.encrypt_shared('x', spw, '135790', skf, b'\0' * 16)
+gui.set_text(app.t_in, '\n\n'.join([codec.encode(blob, True)] * (gui_pages.MAX_SHARED_BATCH + 1)))
+app.cb_rshared.current(0); LOG.clear()
+kfpath = os.path.join(tmp, 'skf.sakey'); open(kfpath, 'wb').write(skf)
+app.v_kf.set(kfpath); app.v_pass.set(spw); app.v_pin.set('135790')
+app.confirm_foreign_pw = lambda pw: True
+app.show('read'); app.do_decrypt(); wait(3)
+out = gui.get_text(app.t_out)
+res['CS4c höchstens 10 gemeinsame Nachrichten je Lauf'] = 'höchstens 10' in out and out.count('echt und unverändert') == 10
 
 # ------------------------------------------------------------------ Design
 th0 = app.cfg.ui('theme'); app.toggle_theme(); app.update()

@@ -15,6 +15,9 @@ from .gui_base import (ERRORS, FONT, LOCK_CHOICES, MONO, clipboard_history_enabl
 from . import i18n
 from .i18n import _
 
+MAX_SHARED_BATCH = 10       # Code-Scanning #4: gemeinsame Nachrichten je Lesen (je eine 1-GiB-Ableitung)
+MAX_CONTACT_BATCH = 50      # Kontakt-Nachrichten je Lesen (je bis zu 1000 Schlüssel je Kontakt durchprobiert)
+
 MANUAL = _("Von Hand (Felder unten)")
 
 
@@ -490,9 +493,16 @@ class PagesMixin:
             try:
                 blob = codec.decode(blk)
                 mode = core.message_mode(blob)
+                # Code-Scanning #4: je gemeinsamer Nachricht eine Argon2id-Ableitung (1 GiB) – Anzahl je Lauf begrenzt
                 if mode == core.MODE_SHARED:
+                    if len(shared) >= MAX_SHARED_BATCH:
+                        raise core.SigillumError(_("Zu viele gemeinsame Nachrichten auf einmal – höchstens {0} je "
+                                                   "Lauf. Den Rest danach einfügen.").format(MAX_SHARED_BATCH))
                     shared.append((i, blob))
                 elif mode in ratchet.MODES:
+                    if len(items) >= MAX_CONTACT_BATCH:
+                        raise core.SigillumError(_("Zu viele Kontakt-Nachrichten auf einmal – höchstens {0} je "
+                                                   "Lauf. Den Rest danach einfügen.").format(MAX_CONTACT_BATCH))
                     items.append((i, blob))
                 else:
                     raise core.SigillumError(_("Unbekannter Nachrichtentyp."))
